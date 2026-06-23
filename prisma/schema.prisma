@@ -1,0 +1,428 @@
+// =========================================
+// NAO — Nexus Avance de Obra
+// Schema multi-obra con 3 roles
+// =========================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================
+// ENUMS
+// =========================================
+
+enum Role {
+  SUPERVISOR
+  RESIDENTE
+  CONTRATISTA
+}
+
+enum Area {
+  ESTRUCTURA
+  OBRA_CIVIL
+  OBRA_BLANCA
+  INSTALACIONES
+  ACABADOS
+  PROYECTO
+  ADMINISTRATIVO
+  VENTA
+  POSTVENTA
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum Estatus {
+  PENDIENTE
+  EN_PROGRESO
+  EN_REVISION
+  COMPLETADO
+  CANCELADO
+}
+
+// =========================================
+// NEXTAUTH
+// =========================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}
+
+// =========================================
+// USUARIO
+// =========================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          Role      @default(CONTRATISTA)
+  puesto        String?
+  telefono      String?
+  activo        Boolean   @default(true)
+
+  // Si es contratista de una empresa, se vincula al registro de Contratista
+  contratistaId String?
+  contratista   Contratista? @relation(fields: [contratistaId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  // Membresía en obras
+  obrasAsignadas ObraUser[]
+
+  // Cosas que crea
+  pendientesResponsable Pendiente[] @relation("ResponsablePendiente")
+  pendientesSupervisor  Pendiente[] @relation("SupervisorPendiente")
+  pendientesCreador     Pendiente[] @relation("CreadorPendiente")
+  minutasSubidas        Minuta[]
+  bitacorasCreadas      BitacoraEntry[]
+  evidenciasSubidas     Evidencia[]
+  comentariosCreados    Comentario[]
+  obrasCreadas          Obra[]
+  metasCreadas          Meta[] @relation("CreadorMeta")
+  programasSubidos      ProgramaObra[] @relation("SubidoProgramaObra")
+}
+
+// =========================================
+// OBRA
+// =========================================
+
+model Obra {
+  id        String   @id @default(cuid())
+  nombre    String
+  direccion String?
+  fechaInicio        DateTime?
+  fechaFinEstimada   DateTime?
+  activa    Boolean  @default(true)
+  imagen    String?
+
+  creadoPorId String?
+  creadoPor   User?   @relation(fields: [creadoPorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Membresía
+  miembros ObraUser[]
+
+  // Recursos
+  pendientes Pendiente[]
+  minutas    Minuta[]
+  bitacora   BitacoraEntry[]
+  contratistas ObraContratista[]
+  metas      Meta[]
+  programas  ProgramaObra[]
+
+  @@index([activa])
+}
+
+// Pivote usuario <-> obra
+model ObraUser {
+  id      String @id @default(cuid())
+  obraId  String
+  userId  String
+
+  obra Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([obraId, userId])
+  @@index([userId])
+  @@index([obraId])
+}
+
+// =========================================
+// CONTRATISTA (empresa)
+// =========================================
+
+model Contratista {
+  id        String   @id @default(cuid())
+  nombre    String
+  empresa   String?
+  rfc       String?
+  telefono  String?
+  email     String?
+  activo    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios   User[]
+  pendientes Pendiente[]
+  obras      ObraContratista[]
+  metas      Meta[]
+  programas  ProgramaObra[]
+}
+
+// Pivote contratista <-> obra
+model ObraContratista {
+  id            String @id @default(cuid())
+  obraId        String
+  contratistaId String
+
+  obra        Obra        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  contratista Contratista @relation(fields: [contratistaId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([obraId, contratistaId])
+}
+
+// =========================================
+// MINUTAS (manuales, sin IA)
+// =========================================
+
+model Minuta {
+  id          String   @id @default(cuid())
+  titulo      String
+  fecha       DateTime @default(now())
+  contenido   String   @db.Text
+  archivoUrl  String?
+  archivoNombre String?
+
+  obraId String
+  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  subidoPorId String
+  subidoPor   User   @relation(fields: [subidoPorId], references: [id])
+
+  pendientes Pendiente[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fecha])
+  @@index([obraId])
+}
+
+// =========================================
+// PENDIENTES
+// =========================================
+
+model Pendiente {
+  id          String     @id @default(cuid())
+  folio       Int        @default(autoincrement())
+  tarea       String     @db.Text
+  descripcion String?    @db.Text
+  area        Area       @default(ESTRUCTURA)
+  prioridad   Prioridad  @default(MEDIA)
+  estatus     Estatus    @default(PENDIENTE)
+  avance      Int        @default(0) // 0-100
+
+  fechaCreacion   DateTime  @default(now())
+  fechaInicio     DateTime
+  fechaEntrega    DateTime
+  fechaCompletado DateTime?
+  completadoPorId String?
+
+  observaciones String? @db.Text
+
+  obraId String
+  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  contratistaId String?
+  contratista   Contratista? @relation(fields: [contratistaId], references: [id])
+
+  responsableId String?
+  responsable   User?   @relation("ResponsablePendiente", fields: [responsableId], references: [id])
+
+  supervisorId String?
+  supervisor   User?   @relation("SupervisorPendiente", fields: [supervisorId], references: [id])
+
+  creadorId String
+  creador   User   @relation("CreadorPendiente", fields: [creadorId], references: [id])
+
+  minutaId String?
+  minuta   Minuta? @relation(fields: [minutaId], references: [id])
+
+  evidencias  Evidencia[]
+  comentarios Comentario[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([obraId])
+  @@index([estatus])
+  @@index([fechaEntrega])
+  @@index([area])
+}
+
+// =========================================
+// EVIDENCIAS
+// =========================================
+
+model Evidencia {
+  id          String   @id @default(cuid())
+  url         String
+  publicId    String?
+  tipo        String
+  descripcion String?
+
+  pendienteId String?
+  pendiente   Pendiente? @relation(fields: [pendienteId], references: [id], onDelete: Cascade)
+
+  bitacoraId String?
+  bitacora   BitacoraEntry? @relation(fields: [bitacoraId], references: [id], onDelete: Cascade)
+
+  metaId String?
+  meta   Meta? @relation(fields: [metaId], references: [id], onDelete: Cascade)
+
+  subidoPorId String
+  subidoPor   User   @relation(fields: [subidoPorId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// =========================================
+// COMENTARIOS
+// =========================================
+
+model Comentario {
+  id    String @id @default(cuid())
+  texto String @db.Text
+
+  pendienteId String
+  pendiente   Pendiente @relation(fields: [pendienteId], references: [id], onDelete: Cascade)
+
+  autorId String
+  autor   User   @relation(fields: [autorId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// =========================================
+// BITÁCORA
+// =========================================
+
+model BitacoraEntry {
+  id        String   @id @default(cuid())
+  fecha     DateTime @default(now())
+  titulo    String
+  contenido String   @db.Text
+  avance    Int?
+  clima     String?
+  personal  Int?
+
+  obraId String
+  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  autorId String
+  autor   User   @relation(fields: [autorId], references: [id])
+
+  evidencias Evidencia[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fecha])
+  @@index([obraId])
+}
+
+// =========================================
+// METAS (programa de obra por contratista)
+// =========================================
+
+model Meta {
+  id     String @id @default(cuid())
+  folio  Int    @default(autoincrement())
+
+  nombre String
+  notas  String? @db.Text
+
+  fechaInicioPlaneada DateTime
+  fechaFinPlaneada    DateTime
+  fechaReal           DateTime?
+
+  obraId String
+  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  contratistaId String
+  contratista   Contratista @relation(fields: [contratistaId], references: [id], onDelete: Cascade)
+
+  creadorId String
+  creador   User   @relation("CreadorMeta", fields: [creadorId], references: [id])
+
+  evidencias Evidencia[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([obraId])
+  @@index([contratistaId])
+  @@index([fechaFinPlaneada])
+}
+
+// =========================================
+// PROGRAMA DE OBRA (Excel/PDF subido por contratista en una obra)
+// =========================================
+
+model ProgramaObra {
+  id          String   @id @default(cuid())
+  nombre      String   // nombre de archivo original
+  url         String   // url Cloudinary
+  publicId    String?  // para borrarlo después en Cloudinary
+  tipo        String   // "pdf" | "excel" | "otro"
+  notas       String?  @db.Text
+
+  esActual    Boolean  @default(true)  // la versión actual; otras se marcan false al subir nueva
+
+  obraId        String
+  obra          Obra        @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  contratistaId String
+  contratista   Contratista @relation(fields: [contratistaId], references: [id], onDelete: Cascade)
+
+  subidoPorId String
+  subidoPor   User   @relation("SubidoProgramaObra", fields: [subidoPorId], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  @@index([obraId])
+  @@index([contratistaId])
+  @@index([contratistaId, esActual])
+}
