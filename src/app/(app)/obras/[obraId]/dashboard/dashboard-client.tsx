@@ -149,7 +149,36 @@ export function DashboardClient({ obra, data }: { obra: any; data: any }) {
           </Link>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* ====== VISTA MÓVIL ====== */}
+          <div className="lg:hidden divide-y divide-slate-100">
+            {data.recientes.length === 0 ? (
+              <p className="text-center text-sm text-slate-500 py-8">Aún no hay pendientes</p>
+            ) : (
+              data.recientes.map((p: any) => (
+                <Link key={p.id} href={`/obras/${obra.id}/pendientes`} className="block p-4 active:bg-slate-50">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-sm text-slate-900 line-clamp-2">{p.tarea}</p>
+                    <EstatusBadge value={p.estatus} />
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2 flex-wrap text-xs text-slate-500">
+                    <AreaBadge value={p.area} />
+                    <PrioridadBadge value={p.prioridad} />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1.5">
+                    {p.responsable?.name || "Sin responsable"} ·{" "}
+                    <span className={cn(isOverdue(p.fechaEntrega, p.estatus) && "text-red-600 font-semibold")}>{formatDate(p.fechaEntrega)}</span>
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <Progress value={p.avance} className="h-1.5 flex-1" />
+                    <span className="text-xs font-medium text-slate-600 w-9 text-right">{p.avance}%</span>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+
+          {/* ====== VISTA ESCRITORIO ====== */}
+          <div className="hidden lg:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -204,15 +233,15 @@ function KpiCard({ label, value, subValue, icon: Icon, color, highlight }: {
   }[color];
   return (
     <Card className={cn("transition-all hover:shadow-md", highlight && "ring-2 ring-red-200 shadow-md")}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</p>
-            <p className="text-3xl font-bold text-slate-900 mt-2">{value}</p>
-            <p className={cn("text-xs mt-1", styles.text)}>{subValue}</p>
+      <CardContent className="p-4 md:p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] md:text-xs font-medium text-slate-500 uppercase tracking-wider truncate">{label}</p>
+            <p className="text-2xl md:text-3xl font-bold text-slate-900 mt-1 md:mt-2">{value}</p>
+            <p className={cn("text-[11px] md:text-xs mt-0.5 md:mt-1", styles.text)}>{subValue}</p>
           </div>
-          <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", styles.iconBg)}>
-            <Icon className={cn("h-5 w-5", styles.text)} />
+          <div className={cn("h-9 w-9 md:h-10 md:w-10 rounded-xl flex items-center justify-center shrink-0", styles.iconBg)}>
+            <Icon className={cn("h-4 w-4 md:h-5 md:w-5", styles.text)} />
           </div>
         </div>
       </CardContent>
