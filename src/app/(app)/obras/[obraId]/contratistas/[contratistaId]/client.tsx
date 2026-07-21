@@ -242,7 +242,39 @@ export function ContratistaDetailClient({
             <p className="text-xs text-slate-500">{metas.length} {metas.length === 1 ? "meta comprometida" : "metas comprometidas"}</p>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* ====== VISTA MÓVIL ====== */}
+            <div className="lg:hidden divide-y divide-slate-100">
+              {metas.map((m) => {
+                const estado = calcularEstadoMeta(m);
+                const dif = diasDiferencia(m.fechaFinPlaneada, m.fechaReal);
+                return (
+                  <div key={m.id} className={cn("p-4",
+                    estado === "VENCIDA" && "bg-red-50/40",
+                    estado === "CUMPLIDA_TARDE" && "bg-amber-50/30")}>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-[11px] text-slate-400 pt-0.5">#{m.folio}</span>
+                      <EstadoMetaBadge value={estado} />
+                    </div>
+                    <p className="font-medium text-sm text-slate-900 mt-1">{m.nombre}</p>
+                    {m.notas && <p className="text-xs text-slate-500 mt-0.5 italic line-clamp-1">{m.notas}</p>}
+                    <div className="mt-2 text-xs text-slate-600 flex items-center gap-1.5 flex-wrap">
+                      <span>{formatDate(m.fechaInicioPlaneada)}</span>
+                      <span className="text-slate-400">→</span>
+                      <span>{formatDate(m.fechaFinPlaneada)}</span>
+                      {m.fechaReal && (
+                        <span className={cn("ml-1 font-medium",
+                          dif !== null && dif > 0 ? "text-red-600" : dif !== null && dif < 0 ? "text-emerald-600" : "text-slate-500")}>
+                          · Real: {formatDate(m.fechaReal)}{dif !== null && dif !== 0 && ` (${dif > 0 ? `${dif}d tarde` : `${Math.abs(dif)}d antes`})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ====== VISTA ESCRITORIO ====== */}
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -303,7 +335,47 @@ export function ContratistaDetailClient({
           <p className="text-xs text-slate-500">{pendientes.length} {pendientes.length === 1 ? "pendiente" : "pendientes"} en total</p>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* ====== VISTA MÓVIL ====== */}
+          <div className="lg:hidden divide-y divide-slate-100">
+            {pendientes.length === 0 ? (
+              <p className="text-center text-sm text-slate-500 py-12 px-4">Este contratista aún no tiene pendientes en {obra.nombre}</p>
+            ) : (
+              pendientes.map((p) => {
+                const overdue = isOverdue(p.fechaEntrega, p.estatus);
+                return (
+                  <div key={p.id} onClick={() => openDetail(p)} className={cn("p-4 active:bg-slate-50", overdue && "bg-red-50/40")}>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-[11px] text-slate-400 pt-0.5">#{p.folio}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <PrioridadBadge value={p.prioridad} />
+                        <EstatusBadge value={p.estatus} />
+                      </div>
+                    </div>
+                    <p className="font-medium text-sm text-slate-900 mt-1.5">{p.tarea}</p>
+                    <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-slate-500">
+                      <AreaBadge value={p.area} />
+                      {p.responsable?.name && <span>· {p.responsable.name}</span>}
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600">
+                      <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <span>{p.fechaInicio ? formatDate(p.fechaInicio) : "—"}</span>
+                      <span className="text-slate-400">→</span>
+                      <span className={cn(overdue && "text-red-600 font-semibold")}>{formatDate(p.fechaEntrega)}</span>
+                      {overdue && <span className="text-[10px] text-red-600 font-bold ml-1">VENCIDO</span>}
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <Progress value={p.avance} className="h-1.5 flex-1"
+                        indicatorClassName={cn(p.avance === 100 ? "bg-emerald-500" : p.avance >= 60 ? "bg-blue-500" : "bg-amber-500")} />
+                      <span className="text-xs font-semibold w-9 text-right">{p.avance}%</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* ====== VISTA ESCRITORIO ====== */}
+          <div className="hidden lg:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
