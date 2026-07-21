@@ -179,7 +179,70 @@ export function MetasClient({ obra, user, initial }: { obra: any; user: any; ini
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* ====== VISTA MÓVIL: tarjetas ====== */}
+            <div className="lg:hidden divide-y divide-slate-100">
+              {filtered.map((m) => {
+                const dif = diasDiferencia(m.fechaFinPlaneada, m.fechaReal);
+                return (
+                  <div key={m.id} onClick={() => { setDetailMeta(m); setDetailOpen(true); }}
+                    className={cn("p-4 active:bg-slate-50",
+                      m.estado === "VENCIDA" && "bg-red-50/40",
+                      m.estado === "CUMPLIDA_TARDE" && "bg-amber-50/30")}>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-[11px] text-slate-400 pt-0.5">#{m.folio}</span>
+                      <EstadoMetaBadge value={m.estado} />
+                    </div>
+                    <p className="font-medium text-sm text-slate-900 mt-1">{m.nombre}</p>
+                    {m.notas && <p className="text-xs text-slate-500 mt-0.5 italic line-clamp-1">{m.notas}</p>}
+                    {m.contratista?.nombre && (
+                      <p className="text-xs text-slate-600 mt-1.5 inline-flex items-center gap-1">
+                        <Briefcase className="h-3 w-3 text-slate-400" /> {m.contratista.nombre}
+                      </p>
+                    )}
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600 flex-wrap">
+                      <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <span>{formatDate(m.fechaInicioPlaneada)}</span>
+                      <span className="text-slate-400">→</span>
+                      <span>{formatDate(m.fechaFinPlaneada)}</span>
+                      {m.fechaReal && (
+                        <span className={cn("ml-1 font-medium",
+                          dif !== null && dif > 0 ? "text-red-600" : dif !== null && dif < 0 ? "text-emerald-600" : "text-slate-500")}>
+                          · Real: {formatDate(m.fechaReal)}{dif !== null && dif !== 0 && ` (${dif > 0 ? `${dif}d tarde` : `${Math.abs(dif)}d antes`})`}
+                        </span>
+                      )}
+                      {m.evidencias?.length > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-slate-500 ml-1">
+                          <ImageIcon className="h-3 w-3" /> {m.evidencias.length}
+                        </span>
+                      )}
+                    </div>
+                    {canEdit && (
+                      <div className="mt-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        {!m.fechaReal && (
+                          <Button size="sm" variant="outline"
+                            className="h-8 text-xs bg-emerald-50 text-emerald-700 border-emerald-200 flex-1"
+                            onClick={() => marcarCumplida(m)}>
+                            <CheckCircle2 className="h-3 w-3" /> Cumplida hoy
+                          </Button>
+                        )}
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setEditing(m); setDialogOpen(true); }}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        {isSupervisor && (
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => handleDelete(m.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ====== VISTA ESCRITORIO: tabla ====== */}
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -286,6 +349,7 @@ export function MetasClient({ obra, user, initial }: { obra: any; user: any; ini
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
