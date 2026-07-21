@@ -55,7 +55,7 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Correo electrónico</Label>
-                <Input id="email" type="email" placeholder="tu@nexus360.mx" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+                <Input id="email" type="email" placeholder="correo@ejemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Contraseña</Label>
@@ -65,14 +65,6 @@ export default function LoginPage() {
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
               </Button>
             </form>
-
-            <div className="mt-6 rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold text-slate-700">Cuentas de prueba:</p>
-              <p>👷 Supervisor → supervisor@nexus360.mx</p>
-              <p>📋 Residente → residente@nexus360.mx</p>
-              <p>🔍 Contratista → contratista@nexus360.mx</p>
-              <p className="text-slate-500 pt-1">Contraseña de todas: <code className="bg-white border px-1 rounded">password123</code></p>
-            </div>
           </CardContent>
         </Card>
 
