@@ -25,6 +25,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
   const [prioridad, setPrioridad] = useState("TODAS");
   const [contratistaFiltro, setContratistaFiltro] = useState("TODOS");
   const [soloVencidos, setSoloVencidos] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -142,12 +143,18 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
       )}
 
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-3 md:p-4">
           <div className="flex flex-col lg:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input placeholder="Buscar tarea..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+            <div className="flex gap-2 flex-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input placeholder="Buscar tarea..." value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
+              </div>
+              <Button variant="outline" className="lg:hidden shrink-0" onClick={() => setShowFilters((v) => !v)}>
+                <Filter className="h-4 w-4" /> Filtros
+              </Button>
             </div>
+            <div className={cn("flex-col lg:flex-row gap-3 lg:flex", showFilters ? "flex" : "hidden")}>
             <Select value={area} onValueChange={setArea}>
               <SelectTrigger className="w-full lg:w-44"><SelectValue placeholder="Área" /></SelectTrigger>
               <SelectContent>
@@ -180,13 +187,96 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
             <Button variant={soloVencidos ? "default" : "outline"} onClick={() => setSoloVencidos((v) => !v)} className="w-full lg:w-auto">
               <Filter className="h-4 w-4" /> Vencidos
             </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* ====== VISTA MÓVIL: tarjetas ====== */}
+          <div className="lg:hidden divide-y divide-slate-100">
+            {filtered.length === 0 ? (
+              <p className="text-center text-sm text-slate-500 py-12">No hay pendientes que coincidan</p>
+            ) : (
+              filtered.map((p) => {
+                const overdue = isOverdue(p.fechaEntrega, p.estatus);
+                const dias = diasRestantes(p.fechaEntrega);
+                const enRevision = p.estatus === "EN_REVISION";
+                return (
+                  <div key={p.id} className={cn("p-4 active:bg-slate-50", overdue && "bg-red-50/40", enRevision && isSupervisor && "bg-violet-50/40")}
+                    onClick={() => openDetail(p)}>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-mono text-[11px] text-slate-400 pt-0.5">#{p.folio}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <PrioridadBadge value={p.prioridad} />
+                        <EstatusBadge value={p.estatus} />
+                      </div>
+                    </div>
+                    <p className="font-medium text-sm text-slate-900 mt-1.5">{p.tarea}</p>
+                    {p.observaciones && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1 italic">{p.observaciones}</p>}
+
+                    <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-slate-500">
+                      <AreaBadge value={p.area} />
+                      {p.contratista?.nombre && <span className="truncate">· {p.contratista.nombre}</span>}
+                    </div>
+
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600">
+                      <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <span>{p.fechaInicio ? formatDate(p.fechaInicio) : "—"}</span>
+                      <span className="text-slate-400">→</span>
+                      <span className={cn(overdue && "text-red-600 font-semibold")}>{formatDate(p.fechaEntrega)}</span>
+                      {overdue && <span className="text-[10px] text-red-600 font-bold ml-1">VENCIDO</span>}
+                      {!overdue && dias >= 0 && dias <= 3 && p.estatus !== "COMPLETADO" && (
+                        <span className="text-[10px] text-orange-600 font-medium ml-1">{dias === 0 ? "Vence hoy" : `En ${dias}d`}</span>
+                      )}
+                    </div>
+
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <Progress value={p.avance} className="h-1.5 flex-1"
+                        indicatorClassName={cn(p.avance === 100 ? "bg-emerald-500" : p.avance >= 60 ? "bg-blue-500" : "bg-amber-500")} />
+                      <span className="text-xs font-semibold w-9 text-right">{p.avance}%</span>
+                    </div>
+
+                    {(canEdit || (isSupervisor && enRevision)) && (
+                      <div className="mt-3 flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                        {canEdit && (
+                          <Select value={p.estatus} onValueChange={(v) => quickUpdate(p.id, { estatus: v })}>
+                            <SelectTrigger className="h-8 flex-1 min-w-[130px] text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                              <SelectItem value="EN_PROGRESO">En progreso</SelectItem>
+                              <SelectItem value="EN_REVISION">En revisión</SelectItem>
+                              {isSupervisor && <SelectItem value="COMPLETADO">Completado</SelectItem>}
+                              <SelectItem value="CANCELADO">Cancelado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {isSupervisor && enRevision && (
+                          <Button size="sm" variant="outline" className="h-8 text-xs bg-emerald-50 text-emerald-700 border-emerald-200" onClick={() => aprobarCompletado(p.id)}>
+                            <CheckCircle2 className="h-3 w-3" /> Aprobar
+                          </Button>
+                        )}
+                        {canEdit && (
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setEditing(p); setDialogOpen(true); }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {isSupervisor && (
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600" onClick={() => handleDelete(p.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* ====== VISTA ESCRITORIO: tabla ====== */}
+          <div className="hidden lg:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
