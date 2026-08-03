@@ -44,3 +44,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   });
   return NextResponse.json(contratista);
 }
+
+// ELIMINAR contratista (desactivar) — solo Supervisor
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (session.user.role !== "SUPERVISOR") {
+    return NextResponse.json({ error: "Solo supervisores pueden eliminar contratistas" }, { status: 403 });
+  }
+
+  const target = await prisma.contratista.findUnique({ where: { id: params.id } });
+  if (!target || !target.activo) {
+    return NextResponse.json({ error: "Contratista no encontrado" }, { status: 404 });
+  }
+
+  // Desactivación (soft delete): desaparece de listas y selectores, pero las
+  // tareas históricas conservan su nombre. También se desactivan sus usuarios
+  // vinculados para que ya no puedan entrar al sistema.
+  await prisma.$transaction([
+    prisma.contratista.update({ where: { id: params.id }, data: { activo: false } }),
+    prisma.user.updateMany({ where: { contratistaId: params.id }, data: { activo: false } }),
+  ]);
+
+  return NextResponse.json({ ok: true });
+}
