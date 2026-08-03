@@ -19,5 +19,5 @@ export default async function AdminUsuariosPage() {
     prisma.contratista.findMany({ where: { activo: true }, select: { id: true, nombre: true }, orderBy: { nombre: "asc" } }),
   ]);
 
-  return <AdminUsuariosClient initial={{ usuarios, contratistas }} />;
+  return <AdminUsuariosClient initial={{ usuarios, contratistas }} sessionUserId={session.user.id} />;
 }
