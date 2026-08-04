@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, puedeEditarPendiente, soloLectura } from "@/lib/auth";
 import { Area, Estatus, Prioridad } from "@prisma/client";
 import { userHasObraAccess } from "@/lib/access";
+import { notificarNuevoPendiente } from "@/lib/email";
 
 const createSchema = z.object({
   obraId: z.string(),
@@ -88,12 +89,53 @@ export async function POST(req: NextRequest) {
         creadorId: session.user.id,
       },
       include: {
+        obra: { select: { id: true, nombre: true } },
         contratista: true,
-        responsable: { select: { id: true, name: true } },
+        responsable: { select: { id: true, name: true, email: true } },
         supervisor: { select: { id: true, name: true } },
         _count: { select: { evidencias: true, comentarios: true } },
       },
     });
+
+    // 📧 Notificar por correo a los involucrados (sin bloquear si falla)
+    try {
+      const destinatarios = new Set<string>();
+
+      // Usuarios de la empresa contratista asignada
+      if (pendiente.contratistaId) {
+        const usuariosEmpresa = await prisma.user.findMany({
+          where: { contratistaId: pendiente.contratistaId, activo: true },
+          select: { email: true },
+        });
+        usuariosEmpresa.forEach((u: { email: string }) => destinatarios.add(u.email));
+      }
+
+      // El responsable asignado
+      if (pendiente.responsable?.email) destinatarios.add(pendiente.responsable.email);
+
+      // No notificarse a uno mismo
+      if (session.user.email) destinatarios.delete(session.user.email);
+
+      if (destinatarios.size > 0) {
+        await notificarNuevoPendiente(Array.from(destinatarios), {
+          tarea: pendiente.tarea,
+          descripcion: pendiente.descripcion,
+          obraNombre: pendiente.obra.nombre,
+          obraId: pendiente.obra.id,
+          area: pendiente.area,
+          prioridad: pendiente.prioridad,
+          fechaInicio: pendiente.fechaInicio,
+          fechaEntrega: pendiente.fechaEntrega,
+          contratistaNombre: pendiente.contratista?.nombre,
+          responsableNombre: pendiente.responsable?.name,
+          creadorNombre: session.user.name,
+          folio: (pendiente as any).folio,
+        });
+      }
+    } catch (e) {
+      console.error("[email] Error al preparar notificación:", e);
+    }
+
     return NextResponse.json(pendiente, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
