@@ -25,7 +25,7 @@ export default async function ContratistaDetailPage({
     notFound();
   }
 
-  const [obra, contratista, pendientes, metas, programas] = await Promise.all([
+  const [obra, contratista, pendientes, metas, programas, actividades] = await Promise.all([
     prisma.obra.findUnique({ where: { id: params.obraId } }),
     prisma.contratista.findUnique({
       where: { id: params.contratistaId },
@@ -50,6 +50,10 @@ export default async function ContratistaDetailPage({
       where: { obraId: params.obraId, contratistaId: params.contratistaId },
       orderBy: { createdAt: "desc" },
       include: { subidoPor: { select: { id: true, name: true } } },
+    }),
+    prisma.programaActividad.findMany({
+      where: { obraId: params.obraId, contratistaId: params.contratistaId },
+      orderBy: [{ orden: "asc" }, { createdAt: "asc" }],
     }),
   ]);
 
@@ -109,6 +113,7 @@ export default async function ContratistaDetailPage({
       pendientes={JSON.parse(JSON.stringify(pendientes))}
       metas={JSON.parse(JSON.stringify(metas))}
       programas={JSON.parse(JSON.stringify(programas))}
+      actividades={JSON.parse(JSON.stringify(actividades))}
       user={session.user as any}
       stats={{
         total,

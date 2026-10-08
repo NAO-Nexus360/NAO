@@ -125,6 +125,7 @@ model User {
   obrasCreadas          Obra[]
   metasCreadas          Meta[] @relation("CreadorMeta")
   programasSubidos      ProgramaObra[] @relation("SubidoProgramaObra")
+  actividadesCreadas    ProgramaActividad[] @relation("CreadorProgramaActividad")
 }
 
 // =========================================
@@ -156,6 +157,7 @@ model Obra {
   contratistas ObraContratista[]
   metas      Meta[]
   programas  ProgramaObra[]
+  actividades ProgramaActividad[]
 
   @@index([activa])
 }
@@ -197,6 +199,7 @@ model Contratista {
   obras      ObraContratista[]
   metas      Meta[]
   programas  ProgramaObra[]
+  actividades ProgramaActividad[]
 }
 
 // Pivote contratista <-> obra
@@ -425,4 +428,32 @@ model ProgramaObra {
   @@index([obraId])
   @@index([contratistaId])
   @@index([contratistaId, esActual])
+}
+
+// =========================================
+// PROGRAMA DE OBRA (actividades con fecha por contratista)
+// Distinto de Pendientes (lo que surge durante la obra) y de Metas (fecha final de cada programa)
+// =========================================
+
+model ProgramaActividad {
+  id        String   @id @default(cuid())
+  fecha     DateTime
+  actividad String
+  orden     Int      @default(0) // posición dentro del plan de ese contratista en la obra
+
+  obraId String
+  obra   Obra   @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  contratistaId String
+  contratista   Contratista @relation(fields: [contratistaId], references: [id], onDelete: Cascade)
+
+  creadorId String
+  creador   User   @relation("CreadorProgramaActividad", fields: [creadorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([obraId])
+  @@index([contratistaId])
+  @@index([contratistaId, orden])
 }

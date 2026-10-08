@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import {
   LayoutDashboard, ListChecks, FileText, BookOpen, Building2, ChevronRight,
-  Folder, Users, Briefcase, ChevronDown, X, Building, MapPin, Target,
+  Folder, Users, Briefcase, ChevronDown, X, Building, MapPin, Target, CalendarRange,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -32,6 +32,7 @@ export function Sidebar({
     { href: `/obras/${obraId}/dashboard`, label: "Dashboard", icon: LayoutDashboard },
     { href: `/obras/${obraId}/pendientes`, label: "Pendientes", icon: ListChecks },
     { href: `/obras/${obraId}/contratistas`, label: "Contratistas", icon: Briefcase },
+    { href: `/obras/${obraId}/programa`, label: "Programa de obra", icon: CalendarRange },
     { href: `/obras/${obraId}/metas`, label: "Metas", icon: Target },
     { href: `/obras/${obraId}/minutas`, label: "Minutas", icon: FileText },
     { href: `/obras/${obraId}/bitacora`, label: "Bitácora", icon: BookOpen },

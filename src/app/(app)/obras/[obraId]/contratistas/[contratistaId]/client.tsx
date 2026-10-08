@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Briefcase, Mail, Phone, ListTodo, CheckCircle2, AlertOctagon, PlayCircle,
-  Clock, Eye, TrendingUp, Calendar, Users, Hash, Image as ImageIcon, MessageSquare, Target,
+  Clock, Eye, TrendingUp, Calendar, Users, Hash, Image as ImageIcon, MessageSquare, Target, CalendarRange,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { PrioridadBadge, EstatusBadge, AreaBadge, AREA_LABEL } from "@/component
 import { EstadoMetaBadge } from "@/components/common/estado-meta-badge";
 import { calcularEstadoMeta, diasDiferencia } from "@/lib/meta-helpers";
 import { formatDate, isOverdue, cn } from "@/lib/utils";
+import { formatFechaMX } from "@/lib/fechas-mx";
 import { PendienteDetailDialog } from "@/components/forms/pendiente-detail-dialog";
 import { ProgramaObraSection } from "@/components/programa-obra-section";
 import {
@@ -26,9 +27,9 @@ const AREA_HEX: Record<string, string> = {
 };
 
 export function ContratistaDetailClient({
-  obra, contratista, pendientes, metas, programas, user, stats,
+  obra, contratista, pendientes, metas, programas, actividades, user, stats,
 }: {
-  obra: any; contratista: any; pendientes: any[]; metas: any[]; programas: any[]; user: any; stats: any;
+  obra: any; contratista: any; pendientes: any[]; metas: any[]; programas: any[]; actividades: any[]; user: any; stats: any;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailPendiente, setDetailPendiente] = useState<any | null>(null);
@@ -230,6 +231,37 @@ export function ContratistaDetailClient({
         contratistaId={contratista.id}
         user={user}
       />
+
+      {/* Actividades del programa de obra (fecha + actividad, solo lectura) */}
+      {actividades.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarRange className="h-4 w-4 text-indigo-600" />
+              Actividades del programa de obra
+            </CardTitle>
+            <p className="text-xs text-slate-500">{actividades.length} {actividades.length === 1 ? "actividad planeada" : "actividades planeadas"}</p>
+          </CardHeader>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead className="min-w-[200px]">Actividad</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {actividades.map((a, i) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="text-sm whitespace-nowrap"><span className="font-mono text-xs text-slate-400 mr-2">{i + 1}</span>{formatFechaMX(a.fecha)}</TableCell>
+                    <TableCell className="text-sm font-medium text-slate-900">{a.actividad}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Metas del contratista (programa de obra) */}
       {metas.length > 0 && (
