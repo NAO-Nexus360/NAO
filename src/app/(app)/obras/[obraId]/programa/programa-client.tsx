@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { CalendarRange, Plus, Pencil, Trash2, Briefcase, ChevronUp, ChevronDown } from "lucide-react";
+import { CalendarRange, Plus, Pencil, Trash2, Briefcase, ChevronUp, ChevronDown, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProgramaActividadDialog } from "@/components/forms/programa-actividad-dialog";
 import { formatFechaMX, isoMX } from "@/lib/fechas-mx";
+import { puedeImportar } from "@/lib/permisos-importar";
 
 export function ProgramaClient({ obra, user, initial }: { obra: any; user: any; initial: any }) {
   const [actividades, setActividades] = useState<any[]>(initial.actividades);
@@ -18,11 +19,14 @@ export function ProgramaClient({ obra, user, initial }: { obra: any; user: any; 
   const [recorrer, setRecorrer] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [importando, setImportando] = useState(false);
 
   const isReadonly = user.role === "CONTRATISTA";
   const canEdit = user.role === "SUPERVISOR" || user.role === "RESIDENTE";
   const isSupervisor = user.role === "SUPERVISOR";
   const seleccionUnica = contratistaFiltro !== "TODOS";
+  // Carga de archivos: solo para la cuenta autorizada y con un contratista seleccionado
+  const puedeSubirArchivo = canEdit && seleccionUnica && puedeImportar(user.email);
 
   const nombreContratista = useMemo(() => {
     const m: Record<string, string> = {};
@@ -110,6 +114,31 @@ export function ProgramaClient({ obra, user, initial }: { obra: any; user: any; 
     } catch (e: any) { toast.error(e.message || "Error"); }
   }
 
+  async function importarArchivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!archivo) return;
+    setImportando(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", archivo);
+      fd.append("obraId", obra.id);
+      fd.append("contratistaId", contratistaFiltro);
+      const res = await fetch("/api/programa-actividades/importar", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo importar el archivo");
+      await recargarPlan(contratistaFiltro);
+      const partes = [`${data.agregadas} ${data.agregadas === 1 ? "actividad agregada" : "actividades agregadas"}`];
+      if (data.duplicadas) partes.push(`${data.duplicadas} ya existían`);
+      if (data.ignoradas) partes.push(`${data.ignoradas} omitidas por falta de descripción`);
+      toast.success(partes.join(" · "));
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setImportando(false);
+    }
+  }
+
   async function handleDelete(a: any) {
     if (!confirm("¿Eliminar esta actividad del programa?")) return;
     try {
@@ -136,9 +165,22 @@ export function ProgramaClient({ obra, user, initial }: { obra: any; user: any; 
           </p>
         </div>
         {canEdit && (
-          <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
-            <Plus className="h-4 w-4" /> Capturar actividades
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {puedeSubirArchivo && (
+              <label className={`inline-flex ${importando ? "pointer-events-none opacity-60" : "cursor-pointer"}`}>
+                <span className="inline-flex items-center gap-2 h-10 px-4 rounded-md border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  {importando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {importando ? "Analizando archivo..." : "Subir archivo"}
+                </span>
+                <input type="file" className="hidden" disabled={importando}
+                  accept=".xlsx,.xls,.csv,.pdf,image/*"
+                  onChange={importarArchivo} />
+              </label>
+            )}
+            <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
+              <Plus className="h-4 w-4" /> Capturar actividades
+            </Button>
+          </div>
         )}
       </div>
 

@@ -15,7 +15,6 @@ import { calcularEstadoMeta, diasDiferencia } from "@/lib/meta-helpers";
 import { formatDate, isOverdue, cn } from "@/lib/utils";
 import { formatFechaMX } from "@/lib/fechas-mx";
 import { PendienteDetailDialog } from "@/components/forms/pendiente-detail-dialog";
-import { ProgramaObraSection } from "@/components/programa-obra-section";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
@@ -27,9 +26,9 @@ const AREA_HEX: Record<string, string> = {
 };
 
 export function ContratistaDetailClient({
-  obra, contratista, pendientes, metas, programas, actividades, user, stats,
+  obra, contratista, pendientes, metas, actividades, user, stats,
 }: {
-  obra: any; contratista: any; pendientes: any[]; metas: any[]; programas: any[]; actividades: any[]; user: any; stats: any;
+  obra: any; contratista: any; pendientes: any[]; metas: any[]; actividades: any[]; user: any; stats: any;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailPendiente, setDetailPendiente] = useState<any | null>(null);
@@ -224,25 +223,20 @@ export function ContratistaDetailClient({
         </Card>
       </div>
 
-      {/* Programa de obra (Excel/PDF) */}
-      <ProgramaObraSection
-        programas={programas}
-        obraId={obra.id}
-        contratistaId={contratista.id}
-        user={user}
-      />
-
       {/* Actividades del programa de obra (fecha + actividad, solo lectura) */}
-      {actividades.length > 0 && (
-        <Card>
+      {/* Programa de obra: todas las actividades planeadas de este contratista (solo lectura) */}
+      <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <CalendarRange className="h-4 w-4 text-indigo-600" />
-              Actividades del programa de obra
+              Programa de obra
             </CardTitle>
             <p className="text-xs text-slate-500">{actividades.length} {actividades.length === 1 ? "actividad planeada" : "actividades planeadas"}</p>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
+            {actividades.length === 0 ? (
+              <p className="text-center text-sm text-slate-500 py-12">Aún no hay actividades programadas para este contratista</p>
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -259,9 +253,9 @@ export function ContratistaDetailClient({
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
-      )}
 
       {/* Metas del contratista (programa de obra) */}
       {metas.length > 0 && (
