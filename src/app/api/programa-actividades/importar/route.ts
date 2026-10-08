@@ -49,8 +49,17 @@ export async function POST(req: NextRequest) {
     } else if (nombre.endsWith(".csv")) {
       lectura = leerCSV(buffer);
     } else if (nombre.endsWith(".pdf")) {
-      const data = await pdfParse(buffer);
-      lectura = leerTexto(data.text || "");
+      let texto = "";
+      try {
+        const data = await pdfParse(buffer);
+        texto = data.text || "";
+      } catch {
+        return NextResponse.json(
+          { error: "No pude leer este PDF. Exporta el archivo de nuevo o súbelo en Excel o CSV." },
+          { status: 422 }
+        );
+      }
+      lectura = leerTexto(texto);
     } else if (FORMATOS_IMAGEN.test(nombre)) {
       return NextResponse.json(
         { error: "Las fotos necesitan análisis con IA, que todavía no está configurado. Sube el archivo en Excel, CSV o PDF." },
