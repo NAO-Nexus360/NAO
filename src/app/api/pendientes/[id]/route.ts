@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions, puedeCompletar, puedeEditarPendiente, soloLectura } from "@/lib/auth";
 import { Estatus } from "@prisma/client";
-import { includeResponsables, limpiarIds, validarResponsables, guardarResponsables } from "@/lib/responsables";
+import { includeResponsables, listaResponsables, limpiarIds, validarResponsables, guardarResponsables } from "@/lib/responsables";
+import { notificarNuevoPendiente } from "@/lib/email";
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -38,7 +39,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const body = await req.json();
-  const current = await prisma.pendiente.findUnique({ where: { id: params.id }, select: { obraId: true } });
+  const current = await prisma.pendiente.findUnique({
+    where: { id: params.id },
+    select: {
+      obraId: true, contratistaId: true, responsableId: true,
+      obra: { select: { nombre: true } },
+      responsables: { select: { userId: true } },
+    },
+  });
   if (!current) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   // 🔒 Solo SUPERVISOR puede marcar COMPLETADO
@@ -91,6 +99,56 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       },
     });
   });
+  // 📧 Avisar solo a las personas que se AGREGAN al pendiente (nuevo responsable o nuevo contratista)
+  try {
+    const yaAsignados = new Set(current.responsables.map((r) => r.userId));
+    if (current.responsableId) yaAsignados.add(current.responsableId);
+    const nuevosResponsables = ids ? ids.filter((id) => !yaAsignados.has(id)) : [];
+    const contratistaNuevo = !!data.contratistaId && data.contratistaId !== current.contratistaId;
+
+    const destinatarios = new Set<string>();
+    if (nuevosResponsables.length > 0) {
+      const usuarios = await prisma.user.findMany({
+        where: { id: { in: nuevosResponsables }, activo: true },
+        select: { email: true },
+      });
+      usuarios.forEach((u) => destinatarios.add(u.email));
+    }
+    if (contratistaNuevo) {
+      const usuariosEmpresa = await prisma.user.findMany({
+        where: { contratistaId: data.contratistaId, activo: true },
+        select: { email: true },
+      });
+      usuariosEmpresa.forEach((u) => destinatarios.add(u.email));
+    }
+    // No notificarse a uno mismo
+    if (session.user.email) destinatarios.delete(session.user.email);
+
+    if (destinatarios.size > 0) {
+      await notificarNuevoPendiente(
+        Array.from(destinatarios),
+        {
+          tarea: pendiente.tarea,
+          descripcion: pendiente.descripcion,
+          obraNombre: current.obra.nombre,
+          obraId: current.obraId,
+          area: pendiente.area,
+          prioridad: pendiente.prioridad,
+          fechaInicio: pendiente.fechaInicio,
+          fechaEntrega: pendiente.fechaEntrega,
+          contratistaNombre: pendiente.contratista?.nombre,
+          responsableNombre: listaResponsables(pendiente).map((r) => r.name).join(", ") || null,
+          creadorNombre: session.user.name,
+          folio: pendiente.folio,
+        },
+        { asignacion: true }
+      );
+    }
+  } catch (e) {
+    // Un fallo del correo nunca debe impedir guardar el pendiente
+    console.error("[email] Error al preparar aviso de asignación:", e);
+  }
+
   return NextResponse.json(pendiente);
 }
 

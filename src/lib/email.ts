@@ -142,7 +142,8 @@ function smtpSend(opts: {
 
 export async function notificarNuevoPendiente(
   destinatarios: string[],
-  p: PendienteEmailData
+  p: PendienteEmailData,
+  opciones: { asignacion?: boolean } = {}
 ) {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
@@ -162,7 +163,7 @@ export async function notificarNuevoPendiente(
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0">
       <div style="background:#0f172a;padding:20px 28px">
         <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold">&#127959;&#65039; NAO — Nexus 360</p>
-        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">Nuevo pendiente asignado</p>
+        <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">${opciones.asignacion ? "Pendiente asignado a ti" : "Nuevo pendiente asignado"}</p>
       </div>
       <div style="padding:28px">
         <p style="margin:0 0 4px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px">
@@ -195,7 +196,7 @@ export async function notificarNuevoPendiente(
     await smtpSend({
       user, pass,
       to: destinatarios,
-      subject: `Nuevo pendiente en ${p.obraNombre}: ${p.tarea}`,
+      subject: `${opciones.asignacion ? "Te asignaron un pendiente" : "Nuevo pendiente"} en ${p.obraNombre}: ${p.tarea}`,
       html,
       fromName: "NAO Nexus 360",
     });
