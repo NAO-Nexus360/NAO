@@ -27,8 +27,9 @@ export function PendienteDialog({
   const [form, setForm] = useState({
     tarea: "", descripcion: "", area: "ESTRUCTURA", prioridad: "MEDIA", estatus: "PENDIENTE", avance: 0,
     fechaInicio: "", fechaEntrega: "",
-    observaciones: "", contratistaId: "", responsableId: "", supervisorId: "",
+    observaciones: "", contratistaId: "", supervisorId: "",
   });
+  const [responsableIds, setResponsableIds] = useState<string[]>([]);
   const [evidencias, setEvidencias] = useState<any[]>([]);
   const [nuevasEvidencias, setNuevasEvidencias] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -44,9 +45,13 @@ export function PendienteDialog({
         fechaEntrega: pendiente.fechaEntrega ? new Date(pendiente.fechaEntrega).toISOString().split("T")[0] : "",
         observaciones: pendiente.observaciones || "",
         contratistaId: pendiente.contratistaId || "",
-        responsableId: pendiente.responsableId || "",
         supervisorId: pendiente.supervisorId || "",
       });
+      setResponsableIds(
+        pendiente.responsables?.length
+          ? pendiente.responsables.map((r: any) => r.userId)
+          : pendiente.responsableId ? [pendiente.responsableId] : []
+      );
       setEvidencias(pendiente.evidencias || []);
       setNuevasEvidencias([]);
     } else {
@@ -56,8 +61,9 @@ export function PendienteDialog({
         tarea: "", descripcion: "", area: "ESTRUCTURA", prioridad: "MEDIA", estatus: "PENDIENTE", avance: 0,
         fechaInicio: hoy.toISOString().split("T")[0],
         fechaEntrega: en7.toISOString().split("T")[0],
-        observaciones: "", contratistaId: "", responsableId: "", supervisorId: "",
+        observaciones: "", contratistaId: "", supervisorId: "",
       });
+      setResponsableIds([]);
       setEvidencias([]);
       setNuevasEvidencias([]);
     }
@@ -113,7 +119,7 @@ export function PendienteDialog({
         ...form,
         avance: Number(form.avance),
         contratistaId: form.contratistaId || null,
-        responsableId: form.responsableId || null,
+        responsableIds,
         supervisorId: form.supervisorId || null,
       });
 
@@ -220,11 +226,25 @@ export function PendienteDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Responsable</Label>
-              <Select value={form.responsableId} onValueChange={(v) => setForm({ ...form, responsableId: v })}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>{usuarios.map((u) => (<SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>))}</SelectContent>
-              </Select>
+              <Label>Responsables {responsableIds.length > 0 && <span className="text-slate-500 font-normal">({responsableIds.length})</span>}</Label>
+              <div className="rounded-md border border-slate-200 p-2 max-h-40 overflow-y-auto space-y-1">
+                {usuarios.length === 0 && <p className="text-xs text-slate-500 px-1 py-1">Esta obra no tiene usuarios asignados</p>}
+                {usuarios.map((u) => (
+                  <label key={u.id} className="flex items-center gap-2 px-1 py-1 text-sm cursor-pointer hover:bg-slate-50 rounded">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-blue-600"
+                      checked={responsableIds.includes(u.id)}
+                      onChange={(e) =>
+                        setResponsableIds((prev) =>
+                          e.target.checked ? [...prev, u.id] : prev.filter((x) => x !== u.id)
+                        )
+                      }
+                    />
+                    {u.name}
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Supervisor</Label>

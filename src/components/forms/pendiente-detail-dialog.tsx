@@ -12,6 +12,7 @@ import {
   Calendar, User, Briefcase, FileText, Image as ImageIcon, X, ChevronLeft, ChevronRight,
   Upload, Loader2, Trash2,
 } from "lucide-react";
+import { listaResponsables } from "@/lib/responsables-vista";
 
 export function PendienteDetailDialog({
   pendiente,
@@ -167,7 +168,7 @@ export function PendienteDetailDialog({
               valueClass={overdue ? "text-red-600 font-semibold" : ""}
             />
             <InfoCell icon={Briefcase} label="Contratista" value={pendiente.contratista?.nombre || "—"} />
-            <InfoCell icon={User} label="Responsable" value={pendiente.responsable?.name || "—"} />
+            <InfoCell icon={User} label="Responsables" value={listaResponsables(pendiente).map((r) => r.name).join(", ") || "—"} />
             <InfoCell icon={User} label="Supervisor" value={pendiente.supervisor?.name || "—"} />
             <InfoCell icon={User} label="Creado por" value={pendiente.creador?.name || "—"} />
           </div>

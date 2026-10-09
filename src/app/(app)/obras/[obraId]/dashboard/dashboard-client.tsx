@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PrioridadBadge, EstatusBadge, AreaBadge, AREA_LABEL, AREA_COLOR } from "@/components/common/badges";
 import { formatDate, isOverdue, diasRestantes, cn } from "@/lib/utils";
+import { listaResponsables, textoResponsables } from "@/lib/responsables-vista";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 const AREA_HEX: Record<string, string> = {
@@ -128,7 +129,7 @@ export function DashboardClient({ obra, data }: { obra: any; data: any }) {
                           {dias === 0 ? "Hoy" : `${dias}d`}
                         </Badge>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">{p.responsable?.name || "Sin responsable"} · {formatDate(p.fechaEntrega)}</p>
+                      <p className="text-xs text-slate-500 mt-1">{textoResponsables(listaResponsables(p)) === "—" ? "Sin responsable" : textoResponsables(listaResponsables(p))} · {formatDate(p.fechaEntrega)}</p>
                     </Link>
                   );
                 })}
@@ -137,6 +138,36 @@ export function DashboardClient({ obra, data }: { obra: any; data: any }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Reporte: pendientes abiertos por responsable */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Pendientes abiertos por responsable</CardTitle>
+          <p className="text-xs text-slate-500">Un pendiente con varios responsables cuenta para cada uno</p>
+        </CardHeader>
+        <CardContent>
+          {data.porResponsable.length === 0 && data.sinResponsable === 0 ? (
+            <p className="text-sm text-slate-500 text-center py-6">Sin pendientes abiertos</p>
+          ) : (
+            <div className="space-y-2">
+              {data.porResponsable.map((r: any) => (
+                <div key={r.nombre} className="flex items-center gap-3 text-sm">
+                  <span className="w-44 truncate text-slate-700">{r.nombre}</span>
+                  <Progress value={(r.count / Math.max(1, data.pendientesAbiertos)) * 100} className="h-2 flex-1" />
+                  <span className="w-8 text-right font-semibold">{r.count}</span>
+                </div>
+              ))}
+              {data.sinResponsable > 0 && (
+                <div className="flex items-center gap-3 text-sm text-slate-500">
+                  <span className="w-44 truncate">Sin responsable</span>
+                  <span className="flex-1" />
+                  <span className="w-8 text-right font-semibold">{data.sinResponsable}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -165,7 +196,7 @@ export function DashboardClient({ obra, data }: { obra: any; data: any }) {
                     <PrioridadBadge value={p.prioridad} />
                   </div>
                   <p className="text-xs text-slate-500 mt-1.5">
-                    {p.responsable?.name || "Sin responsable"} ·{" "}
+                    {textoResponsables(listaResponsables(p)) === "—" ? "Sin responsable" : textoResponsables(listaResponsables(p))} ·{" "}
                     <span className={cn(isOverdue(p.fechaEntrega, p.estatus) && "text-red-600 font-semibold")}>{formatDate(p.fechaEntrega)}</span>
                   </p>
                   <div className="mt-2 flex items-center gap-2">
@@ -198,7 +229,7 @@ export function DashboardClient({ obra, data }: { obra: any; data: any }) {
                         <p className="text-xs text-slate-500 mt-0.5">{p.contratista?.nombre || "Sin contratista"}</p>
                       </TableCell>
                       <TableCell><AreaBadge value={p.area} /></TableCell>
-                      <TableCell className="text-sm">{p.responsable?.name || "—"}</TableCell>
+                      <TableCell className="text-sm">{textoResponsables(listaResponsables(p))}</TableCell>
                       <TableCell>
                         <span className={cn("text-sm", isOverdue(p.fechaEntrega, p.estatus) && "text-red-600 font-semibold")}>{formatDate(p.fechaEntrega)}</span>
                       </TableCell>

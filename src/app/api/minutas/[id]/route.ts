@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { includeResponsables } from "@/lib/responsables";
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   const minuta = await prisma.minuta.findUnique({
     where: { id: params.id },
     include: {
       subidoPor: { select: { id: true, name: true } },
-      pendientes: { include: { responsable: { select: { name: true } }, contratista: { select: { nombre: true } } } },
+      pendientes: { include: { ...includeResponsables, contratista: { select: { nombre: true } } } },
     },
   });
   if (!minuta) return NextResponse.json({ error: "No encontrada" }, { status: 404 });

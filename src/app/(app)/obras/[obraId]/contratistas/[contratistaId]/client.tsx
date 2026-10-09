@@ -18,6 +18,7 @@ import { PendienteDetailDialog } from "@/components/forms/pendiente-detail-dialo
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
+import { listaResponsables, textoResponsables } from "@/lib/responsables-vista";
 
 const AREA_HEX: Record<string, string> = {
   ESTRUCTURA: "#78716c", OBRA_CIVIL: "#d97706", OBRA_BLANCA: "#71717a",
@@ -380,7 +381,7 @@ export function ContratistaDetailClient({
                     <p className="font-medium text-sm text-slate-900 mt-1.5">{p.tarea}</p>
                     <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-slate-500">
                       <AreaBadge value={p.area} />
-                      {p.responsable?.name && <span>· {p.responsable.name}</span>}
+                      {listaResponsables(p).length > 0 && <span>· {textoResponsables(listaResponsables(p))}</span>}
                     </div>
                     <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600">
                       <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
@@ -447,7 +448,7 @@ export function ContratistaDetailClient({
                           </div>
                           {overdue && <span className="text-[10px] text-red-600 font-bold">VENCIDO</span>}
                         </TableCell>
-                        <TableCell className="text-sm text-slate-700">{p.responsable?.name || "—"}</TableCell>
+                        <TableCell className="text-sm text-slate-700">{textoResponsables(listaResponsables(p))}</TableCell>
                         <TableCell><PrioridadBadge value={p.prioridad} /></TableCell>
                         <TableCell><EstatusBadge value={p.estatus} /></TableCell>
                         <TableCell>

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { userHasObraAccess } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { PendientesClient } from "./pendientes-client";
+import { includeResponsables } from "@/lib/responsables";
 
 export default async function PendientesPage({ params }: { params: { obraId: string } }) {
   const session = await getServerSession(authOptions);
@@ -23,7 +24,7 @@ export default async function PendientesPage({ params }: { params: { obraId: str
       orderBy: [{ prioridad: "desc" }, { fechaEntrega: "asc" }],
       include: {
         contratista: { select: { id: true, nombre: true } },
-        responsable: { select: { id: true, name: true } },
+        ...includeResponsables,
         supervisor: { select: { id: true, name: true } },
         evidencias: { include: { subidoPor: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
         _count: { select: { evidencias: true, comentarios: true } },

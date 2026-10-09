@@ -5,6 +5,7 @@ import { userHasObraAccess } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { Estatus } from "@prisma/client";
 import { ContratistaDetailClient } from "./client";
+import { includeResponsables } from "@/lib/responsables";
 
 export default async function ContratistaDetailPage({
   params,
@@ -37,7 +38,7 @@ export default async function ContratistaDetailPage({
       where: { obraId: params.obraId, contratistaId: params.contratistaId },
       orderBy: [{ estatus: "asc" }, { fechaEntrega: "asc" }],
       include: {
-        responsable: { select: { id: true, name: true } },
+        ...includeResponsables,
         supervisor: { select: { id: true, name: true } },
         _count: { select: { evidencias: true, comentarios: true } },
       },

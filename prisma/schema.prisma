@@ -126,6 +126,7 @@ model User {
   metasCreadas          Meta[] @relation("CreadorMeta")
   programasSubidos      ProgramaObra[] @relation("SubidoProgramaObra")
   actividadesCreadas    ProgramaActividad[] @relation("CreadorProgramaActividad")
+  responsabilidadesPendiente PendienteResponsable[]
 }
 
 // =========================================
@@ -273,6 +274,7 @@ model Pendiente {
 
   responsableId String?
   responsable   User?   @relation("ResponsablePendiente", fields: [responsableId], references: [id])
+  responsables  PendienteResponsable[]
 
   supervisorId String?
   supervisor   User?   @relation("SupervisorPendiente", fields: [supervisorId], references: [id])
@@ -456,4 +458,22 @@ model ProgramaActividad {
   @@index([obraId])
   @@index([contratistaId])
   @@index([contratistaId, orden])
+}
+
+// =========================================
+// RESPONSABLES DE UN PENDIENTE (varios por pendiente)
+// responsableId de Pendiente se conserva como el primer responsable
+// =========================================
+
+model PendienteResponsable {
+  pendienteId String
+  userId      String
+
+  pendiente Pendiente @relation(fields: [pendienteId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([pendienteId, userId])
+  @@index([userId])
 }

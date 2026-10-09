@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { listaResponsables, textoResponsables } from "@/lib/responsables-vista";
 import { PrioridadBadge, EstatusBadge, AreaBadge, AREAS_LIST, AREA_LABEL } from "@/components/common/badges";
 import { formatDate, isOverdue, diasRestantes, cn } from "@/lib/utils";
 import { PendienteDialog } from "@/components/forms/pendiente-dialog";
@@ -24,6 +25,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
   const [estatus, setEstatus] = useState("TODOS");
   const [prioridad, setPrioridad] = useState("TODAS");
   const [contratistaFiltro, setContratistaFiltro] = useState("TODOS");
+  const [responsableFiltro, setResponsableFiltro] = useState("TODOS");
   const [soloVencidos, setSoloVencidos] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -46,6 +48,8 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
         if (prioridad !== "TODAS" && p.prioridad !== prioridad) return false;
         if (contratistaFiltro === "SIN_CONTRATISTA" && p.contratistaId) return false;
         if (contratistaFiltro !== "TODOS" && contratistaFiltro !== "SIN_CONTRATISTA" && p.contratistaId !== contratistaFiltro) return false;
+        if (responsableFiltro === "SIN_RESPONSABLE" && listaResponsables(p).length > 0) return false;
+        if (responsableFiltro !== "TODOS" && responsableFiltro !== "SIN_RESPONSABLE" && !listaResponsables(p).some((r) => r.id === responsableFiltro)) return false;
         if (soloVencidos && !isOverdue(p.fechaEntrega, p.estatus)) return false;
         return true;
       })
@@ -54,7 +58,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
         if (r !== 0) return r;
         return new Date(a.fechaEntrega).getTime() - new Date(b.fechaEntrega).getTime();
       });
-  }, [pendientes, q, area, estatus, prioridad, contratistaFiltro, soloVencidos]);
+  }, [pendientes, q, area, estatus, prioridad, contratistaFiltro, responsableFiltro, soloVencidos]);
 
   const vencidosCount = pendientes.filter((p) => isOverdue(p.fechaEntrega, p.estatus)).length;
 
@@ -169,6 +173,16 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
                 <SelectItem value="SIN_CONTRATISTA">Sin contratista</SelectItem>
                 {initial.contratistas.map((c: any) => (
                   <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={responsableFiltro} onValueChange={setResponsableFiltro}>
+              <SelectTrigger className="w-full lg:w-52"><SelectValue placeholder="Responsable" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos los responsables</SelectItem>
+                <SelectItem value="SIN_RESPONSABLE">Sin responsable</SelectItem>
+                {initial.usuarios.map((u: any) => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -325,7 +339,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
                           )}
                         </TableCell>
                         <TableCell className="text-sm text-slate-700">{p.contratista?.nombre || "—"}</TableCell>
-                        <TableCell className="text-sm text-slate-700">{p.responsable?.name || "—"}</TableCell>
+                        <TableCell className="text-sm text-slate-700">{textoResponsables(listaResponsables(p))}</TableCell>
                         <TableCell><PrioridadBadge value={p.prioridad} /></TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           {canEdit ? (

@@ -6,6 +6,7 @@ import { authOptions, puedeEditarPendiente, soloLectura } from "@/lib/auth";
 import { Area, Estatus, Prioridad } from "@prisma/client";
 import { userHasObraAccess } from "@/lib/access";
 import { notificarNuevoPendiente } from "@/lib/email";
+import { includeResponsables, listaResponsables, textoResponsables, limpiarIds, validarResponsables, guardarResponsables } from "@/lib/responsables";
 
 const createSchema = z.object({
   obraId: z.string(),
@@ -20,6 +21,7 @@ const createSchema = z.object({
   observaciones: z.string().optional(),
   contratistaId: z.string().optional().nullable(),
   responsableId: z.string().optional().nullable(),
+  responsableIds: z.array(z.string()).optional(),
   supervisorId: z.string().optional().nullable(),
 });
 
@@ -49,7 +51,7 @@ export async function GET(req: NextRequest) {
     orderBy: [{ prioridad: "desc" }, { fechaEntrega: "asc" }],
     include: {
       contratista: { select: { id: true, nombre: true } },
-      responsable: { select: { id: true, name: true } },
+      ...includeResponsables,
       supervisor: { select: { id: true, name: true } },
       creador: { select: { id: true, name: true } },
       _count: { select: { evidencias: true, comentarios: true } },
@@ -81,20 +83,34 @@ export async function POST(req: NextRequest) {
       body.estatus = "EN_REVISION";
     }
 
-    const pendiente = await prisma.pendiente.create({
-      data: {
-        ...body,
-        fechaInicio: new Date(body.fechaInicio),
-        fechaEntrega: new Date(body.fechaEntrega),
-        creadorId: session.user.id,
-      },
-      include: {
-        obra: { select: { id: true, nombre: true } },
-        contratista: true,
-        responsable: { select: { id: true, name: true, email: true } },
-        supervisor: { select: { id: true, name: true } },
-        _count: { select: { evidencias: true, comentarios: true } },
-      },
+    // Responsables: varios por pendiente (responsableIds); responsableId se acepta por compatibilidad
+    const { responsableIds, responsableId, ...datos } = body;
+    const ids = limpiarIds(responsableIds ?? [responsableId]);
+    if (!(await validarResponsables(body.obraId, ids))) {
+      return NextResponse.json({ error: "Solo puedes asignar usuarios de esta obra" }, { status: 400 });
+    }
+
+    const pendiente = await prisma.$transaction(async (tx) => {
+      const creado = await tx.pendiente.create({
+        data: {
+          ...datos,
+          responsableId: ids[0] ?? null,
+          fechaInicio: new Date(body.fechaInicio),
+          fechaEntrega: new Date(body.fechaEntrega),
+          creadorId: session.user.id,
+        },
+      });
+      await guardarResponsables(tx, creado.id, ids);
+      return tx.pendiente.findUniqueOrThrow({
+        where: { id: creado.id },
+        include: {
+          obra: { select: { id: true, nombre: true } },
+          contratista: true,
+          ...includeResponsables,
+          supervisor: { select: { id: true, name: true } },
+          _count: { select: { evidencias: true, comentarios: true } },
+        },
+      });
     });
 
     // 📧 Notificar por correo a los involucrados (sin bloquear si falla)
@@ -110,8 +126,8 @@ export async function POST(req: NextRequest) {
         usuariosEmpresa.forEach((u: { email: string }) => destinatarios.add(u.email));
       }
 
-      // El responsable asignado
-      if (pendiente.responsable?.email) destinatarios.add(pendiente.responsable.email);
+      // Todos los responsables asignados
+      listaResponsables(pendiente).forEach((r) => { if (r.email) destinatarios.add(r.email); });
 
       // No notificarse a uno mismo
       if (session.user.email) destinatarios.delete(session.user.email);
@@ -127,7 +143,7 @@ export async function POST(req: NextRequest) {
           fechaInicio: pendiente.fechaInicio,
           fechaEntrega: pendiente.fechaEntrega,
           contratistaNombre: pendiente.contratista?.nombre,
-          responsableNombre: pendiente.responsable?.name,
+          responsableNombre: listaResponsables(pendiente).map((r) => r.name).join(", ") || null,
           creadorNombre: session.user.name,
           folio: (pendiente as any).folio,
         });

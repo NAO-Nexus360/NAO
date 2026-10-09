@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions, puedeCompletar, puedeEditarPendiente, soloLectura } from "@/lib/auth";
 import { Estatus } from "@prisma/client";
+import { includeResponsables, limpiarIds, validarResponsables, guardarResponsables } from "@/lib/responsables";
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -12,7 +13,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
     where: { id: params.id },
     include: {
       contratista: true,
-      responsable: { select: { id: true, name: true } },
+      ...includeResponsables,
       supervisor: { select: { id: true, name: true } },
       creador: { select: { id: true, name: true } },
       evidencias: { include: { subidoPor: { select: { name: true } } } },
@@ -37,6 +38,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const body = await req.json();
+  const current = await prisma.pendiente.findUnique({ where: { id: params.id }, select: { obraId: true } });
+  if (!current) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   // 🔒 Solo SUPERVISOR puede marcar COMPLETADO
   if (body.estatus === Estatus.COMPLETADO && !puedeCompletar(session.user.role)) {
@@ -47,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   const data: any = {};
-  const allowed = ["tarea", "descripcion", "area", "prioridad", "estatus", "avance", "observaciones", "contratistaId", "responsableId", "supervisorId"];
+  const allowed = ["tarea", "descripcion", "area", "prioridad", "estatus", "avance", "observaciones", "contratistaId", "supervisorId"];
   for (const k of allowed) if (k in body) data[k] = body[k];
   if (body.fechaEntrega) data.fechaEntrega = new Date(body.fechaEntrega);
   if (body.fechaInicio) data.fechaInicio = new Date(body.fechaInicio);
@@ -67,15 +70,26 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data.completadoPorId = null;
   }
 
-  const pendiente = await prisma.pendiente.update({
-    where: { id: params.id },
-    data,
-    include: {
-      contratista: true,
-      responsable: { select: { id: true, name: true } },
-      supervisor: { select: { id: true, name: true } },
-      _count: { select: { evidencias: true, comentarios: true } },
-    },
+  // Responsables: si vienen en la petición, reemplazan la lista completa
+  const cambiaResponsables = "responsableIds" in body || "responsableId" in body;
+  const ids = cambiaResponsables ? limpiarIds(body.responsableIds ?? [body.responsableId]) : null;
+  if (ids && !(await validarResponsables(current.obraId, ids))) {
+    return NextResponse.json({ error: "Solo puedes asignar usuarios de esta obra" }, { status: 400 });
+  }
+  if (ids) data.responsableId = ids[0] ?? null;
+
+  const pendiente = await prisma.$transaction(async (tx) => {
+    await tx.pendiente.update({ where: { id: params.id }, data });
+    if (ids) await guardarResponsables(tx, params.id, ids);
+    return tx.pendiente.findUniqueOrThrow({
+      where: { id: params.id },
+      include: {
+        contratista: true,
+        ...includeResponsables,
+        supervisor: { select: { id: true, name: true } },
+        _count: { select: { evidencias: true, comentarios: true } },
+      },
+    });
   });
   return NextResponse.json(pendiente);
 }
