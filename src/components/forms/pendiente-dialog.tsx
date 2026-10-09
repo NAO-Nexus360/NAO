@@ -10,6 +10,9 @@ import { Loader2, Upload, X, FileText, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { AREAS_LIST, AREA_LABEL } from "@/components/common/badges";
 
+// Valor de la opción "Quitar" (Radix Select no admite valores vacíos)
+const SIN_VALOR = "__sin__";
+
 type Usuario = { id: string; name: string; role: string };
 type Contratista = { id: string; nombre: string; empresa?: string | null };
 
@@ -220,9 +223,12 @@ export function PendienteDialog({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Contratista</Label>
-              <Select value={form.contratistaId} onValueChange={(v) => setForm({ ...form, contratistaId: v })}>
+              <Select value={form.contratistaId} onValueChange={(v) => setForm({ ...form, contratistaId: v === SIN_VALOR ? "" : v })}>
                 <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>{contratistas.map((c) => (<SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>))}</SelectContent>
+                <SelectContent>
+                  <SelectItem value={SIN_VALOR}>— Quitar</SelectItem>
+                  {contratistas.map((c) => (<SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>))}
+                </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
@@ -248,9 +254,12 @@ export function PendienteDialog({
             </div>
             <div className="space-y-2">
               <Label>Supervisor</Label>
-              <Select value={form.supervisorId} onValueChange={(v) => setForm({ ...form, supervisorId: v })}>
+              <Select value={form.supervisorId} onValueChange={(v) => setForm({ ...form, supervisorId: v === SIN_VALOR ? "" : v })}>
                 <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>{usuarios.filter((u) => u.role === "SUPERVISOR").map((u) => (<SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>))}</SelectContent>
+                <SelectContent>
+                  <SelectItem value={SIN_VALOR}>— Quitar</SelectItem>
+                  {usuarios.filter((u) => u.role === "SUPERVISOR").map((u) => (<SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>))}
+                </SelectContent>
               </Select>
             </div>
           </div>
