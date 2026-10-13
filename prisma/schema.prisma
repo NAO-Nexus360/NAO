@@ -127,6 +127,7 @@ model User {
   programasSubidos      ProgramaObra[] @relation("SubidoProgramaObra")
   actividadesCreadas    ProgramaActividad[] @relation("CreadorProgramaActividad")
   responsabilidadesPendiente PendienteResponsable[]
+  carpetasPendientes CarpetaPendientes[]
 }
 
 // =========================================
@@ -159,6 +160,7 @@ model Obra {
   metas      Meta[]
   programas  ProgramaObra[]
   actividades ProgramaActividad[]
+  carpetasPendientes CarpetaPendientes[]
 
   @@index([activa])
 }
@@ -275,6 +277,7 @@ model Pendiente {
   responsableId String?
   responsable   User?   @relation("ResponsablePendiente", fields: [responsableId], references: [id])
   responsables  PendienteResponsable[]
+  enCarpetas    CarpetaPendiente[]
 
   supervisorId String?
   supervisor   User?   @relation("SupervisorPendiente", fields: [supervisorId], references: [id])
@@ -476,4 +479,38 @@ model PendienteResponsable {
 
   @@id([pendienteId, userId])
   @@index([userId])
+}
+
+// =========================================
+// CARPETAS PERSONALES DE PENDIENTES
+// Cada usuario organiza sus propias carpetas dentro de una obra (privadas)
+// =========================================
+
+model CarpetaPendientes {
+  id        String   @id @default(cuid())
+  nombre    String
+  obraId    String
+  usuarioId String
+
+  obra    Obra    @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  usuario User    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pendientes CarpetaPendiente[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([usuarioId, obraId])
+}
+
+model CarpetaPendiente {
+  carpetaId  String
+  pendienteId String
+
+  carpeta   CarpetaPendientes @relation(fields: [carpetaId], references: [id], onDelete: Cascade)
+  pendiente Pendiente         @relation(fields: [pendienteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([carpetaId, pendienteId])
+  @@index([pendienteId])
 }

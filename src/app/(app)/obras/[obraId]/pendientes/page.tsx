@@ -44,6 +44,13 @@ export default async function PendientesPage({ params }: { params: { obraId: str
 
   if (!obra) notFound();
 
+  // Carpetas personales: solo las de la persona que ve la pantalla
+  const carpetas = await prisma.carpetaPendientes.findMany({
+    where: { obraId: params.obraId, usuarioId: session.user.id },
+    orderBy: { createdAt: "asc" },
+    include: { pendientes: { select: { pendienteId: true } } },
+  });
+
   return (
     <PendientesClient
       obra={JSON.parse(JSON.stringify(obra))}
@@ -51,6 +58,7 @@ export default async function PendientesPage({ params }: { params: { obraId: str
       initial={{
         pendientes: JSON.parse(JSON.stringify(pendientes)),
         usuarios, contratistas,
+        carpetas: carpetas.map((c) => ({ id: c.id, nombre: c.nombre, pendienteIds: c.pendientes.map((x) => x.pendienteId) })),
       }}
     />
   );

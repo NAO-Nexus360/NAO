@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Search, Plus, Filter, Calendar, MessageSquare, Image as ImageIcon, Trash2, Pencil, CheckCircle2, Eye } from "lucide-react";
+import { Search, Plus, Filter, Calendar, MessageSquare, Image as ImageIcon, Trash2, Pencil, CheckCircle2, Eye, Folder, FolderPlus } from "lucide-react";
+import { CarpetasPendienteDialog } from "@/components/forms/carpetas-pendiente-dialog";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,11 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
   const [responsableFiltro, setResponsableFiltro] = useState("TODOS");
   const [soloVencidos, setSoloVencidos] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  // Carpetas personales (solo visibles para quien las creó)
+  const [carpetas, setCarpetas] = useState<any[]>(initial.carpetas || []);
+  const [carpetaActiva, setCarpetaActiva] = useState<string>("TODAS");
+  const [carpetasOpen, setCarpetasOpen] = useState(false);
+  const [carpetasDePendiente, setCarpetasDePendiente] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -51,6 +57,10 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
         if (responsableFiltro === "SIN_RESPONSABLE" && listaResponsables(p).length > 0) return false;
         if (responsableFiltro !== "TODOS" && responsableFiltro !== "SIN_RESPONSABLE" && !listaResponsables(p).some((r) => r.id === responsableFiltro)) return false;
         if (soloVencidos && !isOverdue(p.fechaEntrega, p.estatus)) return false;
+        if (carpetaActiva !== "TODAS") {
+          const carpeta = carpetas.find((c) => c.id === carpetaActiva);
+          if (carpeta && !carpeta.pendienteIds.includes(p.id)) return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -58,7 +68,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
         if (r !== 0) return r;
         return new Date(a.fechaEntrega).getTime() - new Date(b.fechaEntrega).getTime();
       });
-  }, [pendientes, q, area, estatus, prioridad, contratistaFiltro, responsableFiltro, soloVencidos]);
+  }, [pendientes, q, area, estatus, prioridad, contratistaFiltro, responsableFiltro, soloVencidos, carpetaActiva, carpetas]);
 
   const vencidosCount = pendientes.filter((p) => isOverdue(p.fechaEntrega, p.estatus)).length;
 
@@ -106,6 +116,68 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
     toast.success("Tarea aprobada y marcada como Completada");
   }
 
+  async function crearCarpeta() {
+    const nombre = window.prompt("Nombre de la carpeta:");
+    if (!nombre || !nombre.trim()) return;
+    try {
+      const res = await fetch("/api/carpetas", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ obraId: obra.id, nombre: nombre.trim() }),
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(typeof err.error === "string" ? err.error : "No se pudo crear la carpeta"); }
+      const nueva = await res.json();
+      setCarpetas((prev) => [...prev, nueva]);
+      setCarpetaActiva(nueva.id);
+      toast.success("Carpeta creada");
+    } catch (e: any) { toast.error(e.message || "Error"); }
+  }
+
+  async function renombrarCarpeta() {
+    const actual = carpetas.find((c) => c.id === carpetaActiva);
+    if (!actual) return;
+    const nombre = window.prompt("Nuevo nombre:", actual.nombre);
+    if (!nombre || !nombre.trim() || nombre.trim() === actual.nombre) return;
+    try {
+      const res = await fetch(`/api/carpetas/${actual.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre: nombre.trim() }),
+      });
+      if (!res.ok) throw new Error("No se pudo renombrar");
+      setCarpetas((prev) => prev.map((c) => (c.id === actual.id ? { ...c, nombre: nombre.trim() } : c)));
+      toast.success("Carpeta renombrada");
+    } catch (e: any) { toast.error(e.message || "Error"); }
+  }
+
+  async function borrarCarpeta() {
+    const actual = carpetas.find((c) => c.id === carpetaActiva);
+    if (!actual) return;
+    if (!confirm(`¿Borrar la carpeta "${actual.nombre}"? Los pendientes no se borran.`)) return;
+    try {
+      const res = await fetch(`/api/carpetas/${actual.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("No se pudo borrar la carpeta");
+      setCarpetas((prev) => prev.filter((c) => c.id !== actual.id));
+      setCarpetaActiva("TODAS");
+      toast.success("Carpeta borrada");
+    } catch (e: any) { toast.error(e.message || "Error"); }
+  }
+
+  async function toggleCarpeta(carpetaId: string, pendienteId: string, agregar: boolean) {
+    try {
+      const res = agregar
+        ? await fetch(`/api/carpetas/${carpetaId}/pendientes`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pendienteId }),
+          })
+        : await fetch(`/api/carpetas/${carpetaId}/pendientes?pendienteId=${pendienteId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("No se pudo actualizar la carpeta");
+      setCarpetas((prev) => prev.map((c) => {
+        if (c.id !== carpetaId) return c;
+        const ids = c.pendienteIds.filter((x: string) => x !== pendienteId);
+        return { ...c, pendienteIds: agregar ? [...ids, pendienteId] : ids };
+      }));
+    } catch (e: any) { toast.error(e.message || "Error"); }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("¿Eliminar este pendiente?")) return;
     try {
@@ -145,6 +217,32 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
           💡 Puedes crear/editar pendientes y mover el avance hasta 100%, pero <b>solo un supervisor puede marcar Completado</b>.
         </div>
       )}
+
+      <Card>
+        <CardContent className="p-3 md:p-4 flex flex-wrap items-center gap-2">
+          <Button size="sm" variant={carpetaActiva === "TODAS" ? "default" : "outline"} onClick={() => setCarpetaActiva("TODAS")}>
+            Todos
+          </Button>
+          {carpetas.map((c) => (
+            <Button key={c.id} size="sm" variant={carpetaActiva === c.id ? "default" : "outline"} onClick={() => setCarpetaActiva(c.id)} className="gap-1">
+              <Folder className="h-3.5 w-3.5" /> {c.nombre} <span className="text-xs opacity-70">{c.pendienteIds.length}</span>
+            </Button>
+          ))}
+          <Button size="sm" variant="outline" onClick={crearCarpeta}>
+            <FolderPlus className="h-3.5 w-3.5" /> Nueva carpeta
+          </Button>
+          {carpetaActiva !== "TODAS" && (
+            <>
+              <Button size="icon" variant="ghost" className="h-8 w-8" title="Renombrar carpeta" onClick={renombrarCarpeta}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600 hover:bg-red-50" title="Borrar carpeta" onClick={borrarCarpeta}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-3 md:p-4">
@@ -252,6 +350,11 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
                       <span className="text-xs font-semibold w-9 text-right">{p.avance}%</span>
                     </div>
 
+                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => { setCarpetasDePendiente(p.id); setCarpetasOpen(true); }}>
+                        <Folder className="h-3.5 w-3.5" /> Carpetas
+                      </Button>
+                    </div>
                     {(canEdit || (isSupervisor && enRevision)) && (
                       <div className="mt-3 flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                         {canEdit && (
@@ -379,6 +482,9 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
                                 <CheckCircle2 className="h-3 w-3" /> Aprobar
                               </Button>
                             )}
+                            <Button size="icon" variant="ghost" className="h-8 w-8" title="Carpetas" onClick={() => { setCarpetasDePendiente(p.id); setCarpetasOpen(true); }}>
+                              <Folder className="h-3.5 w-3.5" />
+                            </Button>
                             {canEdit && (
                               <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setEditing(p); setDialogOpen(true); }} title="Editar">
                                 <Pencil className="h-3.5 w-3.5" />
@@ -414,6 +520,14 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
         open={detailOpen}
         onOpenChange={setDetailOpen}
         user={user}
+      />
+      <CarpetasPendienteDialog
+        open={carpetasOpen}
+        onOpenChange={setCarpetasOpen}
+        pendienteId={carpetasDePendiente}
+        carpetas={carpetas}
+        onToggle={toggleCarpeta}
+        onNueva={() => { setCarpetasOpen(false); crearCarpeta(); }}
       />
     </div>
   );
