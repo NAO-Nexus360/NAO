@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Upload, X, FileText, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { AREAS_LIST, AREA_LABEL } from "@/components/common/badges";
+import { prepararArchivo } from "@/lib/preparar-archivo";
 
 // Valor de la opción "Quitar" (Radix Select no admite valores vacíos)
 const SIN_VALOR = "__sin__";
@@ -80,7 +81,7 @@ export function PendienteDialog({
       const uploaded: any[] = [];
       for (const file of Array.from(files)) {
         const fd = new FormData();
-        fd.append("file", file);
+        fd.append("file", await prepararArchivo(file));
         fd.append("folder", "pendientes");
         const res = await fetch("/api/upload", { method: "POST", body: fd });
         if (!res.ok) { toast.error("Error subiendo " + file.name); continue; }

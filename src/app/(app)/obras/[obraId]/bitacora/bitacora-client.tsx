@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/utils";
+import { prepararArchivo } from "@/lib/preparar-archivo";
 
 export function BitacoraClient({ obra, user, initial }: { obra: any; user: any; initial: any }) {
   const router = useRouter();
@@ -42,7 +43,7 @@ export function BitacoraClient({ obra, user, initial }: { obra: any; user: any; 
       const uploaded: any[] = [];
       for (const file of Array.from(files)) {
         const fd = new FormData();
-        fd.append("file", file); fd.append("folder", "bitacora");
+        fd.append("file", await prepararArchivo(file)); fd.append("folder", "bitacora");
         const res = await fetch("/api/upload", { method: "POST", body: fd });
         if (res.ok) uploaded.push(await res.json());
       }

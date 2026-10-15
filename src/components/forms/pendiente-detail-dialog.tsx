@@ -13,6 +13,7 @@ import {
   Upload, Loader2, Trash2,
 } from "lucide-react";
 import { listaResponsables } from "@/lib/responsables-vista";
+import { prepararArchivo } from "@/lib/preparar-archivo";
 
 export function PendienteDetailDialog({
   pendiente,
@@ -73,7 +74,7 @@ export function PendienteDetailDialog({
       const uploaded: any[] = [];
       for (const file of Array.from(files)) {
         const fd = new FormData();
-        fd.append("file", file);
+        fd.append("file", await prepararArchivo(file));
         fd.append("folder", "pendientes");
         const res = await fetch("/api/upload", { method: "POST", body: fd });
         if (!res.ok) { toast.error("Error subiendo " + file.name); continue; }

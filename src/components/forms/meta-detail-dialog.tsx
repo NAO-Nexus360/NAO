@@ -11,6 +11,7 @@ import {
   Calendar, Briefcase, User, Image as ImageIcon, X, ChevronLeft, ChevronRight,
   Upload, Loader2, Trash2, Target, FileText,
 } from "lucide-react";
+import { prepararArchivo } from "@/lib/preparar-archivo";
 
 export function MetaDetailDialog({
   meta,
@@ -65,7 +66,7 @@ export function MetaDetailDialog({
       const uploaded: any[] = [];
       for (const file of Array.from(files)) {
         const fd = new FormData();
-        fd.append("file", file);
+        fd.append("file", await prepararArchivo(file));
         fd.append("folder", "metas");
         const res = await fetch("/api/upload", { method: "POST", body: fd });
         if (!res.ok) { toast.error("Error subiendo " + file.name); continue; }

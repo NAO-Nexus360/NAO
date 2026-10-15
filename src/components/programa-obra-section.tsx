@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
+import { prepararArchivo } from "@/lib/preparar-archivo";
 
 type Programa = {
   id: string;
@@ -50,7 +51,7 @@ export function ProgramaObraSection({
     try {
       // 1) Subir a Cloudinary
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", await prepararArchivo(file));
       fd.append("folder", "programas");
       const resUp = await fetch("/api/upload", { method: "POST", body: fd });
       if (!resUp.ok) throw new Error("Error subiendo archivo");

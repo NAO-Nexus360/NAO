@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/utils";
+import { prepararArchivo } from "@/lib/preparar-archivo";
 
 export function MinutasClient({ obra, user, initial }: { obra: any; user: any; initial: any }) {
   const router = useRouter();
@@ -39,7 +40,7 @@ export function MinutasClient({ obra, user, initial }: { obra: any; user: any; i
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append("file", file); fd.append("folder", "minutas");
+      fd.append("file", await prepararArchivo(file)); fd.append("folder", "minutas");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) throw new Error("Error al subir archivo");
       const data = await res.json();
