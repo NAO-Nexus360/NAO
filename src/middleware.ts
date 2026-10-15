@@ -11,5 +11,9 @@ export const config = {
     "/api/usuarios/:path*",
     "/api/contratistas/:path*",
     "/api/upload",
+    "/api/metas/:path*",
+    "/api/programas/:path*",
+    "/api/programa-actividades/:path*",
+    "/api/carpetas/:path*",
   ],
 };

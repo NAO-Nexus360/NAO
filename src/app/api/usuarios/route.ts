@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 const schema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  password: z.string().min(6).default("password123"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
   role: z.nativeEnum(Role),
   puesto: z.string().optional(),
   telefono: z.string().optional(),

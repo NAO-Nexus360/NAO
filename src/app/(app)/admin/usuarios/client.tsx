@@ -19,7 +19,7 @@ const roleColor: Record<string, string> = {
 };
 
 const EMPTY_FORM = {
-  name: "", email: "", password: "password123", role: "CONTRATISTA",
+  name: "", email: "", password: "", role: "CONTRATISTA",
   puesto: "", telefono: "", contratistaId: "",
 };
 
