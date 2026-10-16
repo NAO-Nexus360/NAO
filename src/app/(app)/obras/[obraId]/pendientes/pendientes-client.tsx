@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Plus, Filter, Calendar, MessageSquare, Image as ImageIcon, Trash2, Pencil, CheckCircle2, Eye, Folder, FolderPlus } from "lucide-react";
 import { CarpetasPendienteDialog } from "@/components/forms/carpetas-pendiente-dialog";
 import { toast } from "sonner";
@@ -10,6 +10,8 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listaResponsables, textoResponsables } from "@/lib/responsables-vista";
+import { enviarOEncolar, leerCambiosPendientes } from "@/lib/offline/cliente";
+import { aplicarOperaciones, nuevoIdLocal, esIdLocal } from "@/lib/offline/outbox";
 import { PrioridadBadge, EstatusBadge, AreaBadge, AREAS_LIST, AREA_LABEL } from "@/components/common/badges";
 import { formatDate, isOverdue, diasRestantes, cn } from "@/lib/utils";
 import { PendienteDialog } from "@/components/forms/pendiente-dialog";
@@ -21,6 +23,42 @@ const RANK: Record<string, number> = { CRITICA: 4, ALTA: 3, MEDIA: 2, BAJA: 1 };
 
 export function PendientesClient({ obra, user, initial }: { obra: any; user: any; initial: any }) {
   const [pendientes, setPendientes] = useState<any[]>(initial.pendientes);
+
+  // Convierte un cambio hecho sin conexión en el objeto que usa esta pantalla
+  function construirLocal(base: any | null, cuerpo: Record<string, any>, id: string) {
+    const campos = ["tarea", "descripcion", "area", "prioridad", "estatus", "avance", "observaciones", "contratistaId", "supervisorId", "fechaInicio", "fechaEntrega"];
+    const resultado: any = base
+      ? { ...base }
+      : { id, folio: null, evidencias: [], _count: { evidencias: 0, comentarios: 0 }, estatus: "PENDIENTE", avance: 0, fechaCreacion: new Date().toISOString(), responsables: [], responsable: null, contratista: null, supervisor: null };
+    for (const k of campos) if (k in cuerpo) resultado[k] = cuerpo[k];
+    if (Array.isArray(cuerpo.responsableIds)) {
+      resultado.responsables = cuerpo.responsableIds
+        .map((uid: string) => initial.usuarios.find((u: any) => u.id === uid))
+        .filter(Boolean)
+        .map((u: any) => ({ userId: u.id, user: { id: u.id, name: u.name } }));
+      resultado.responsableId = cuerpo.responsableIds[0] ?? null;
+      resultado.responsable = null;
+    }
+    if ("contratistaId" in cuerpo) resultado.contratista = initial.contratistas.find((c: any) => c.id === cuerpo.contratistaId) ?? null;
+    if ("supervisorId" in cuerpo) {
+      const s = initial.usuarios.find((u: any) => u.id === cuerpo.supervisorId);
+      resultado.supervisor = s ? { id: s.id, name: s.name } : null;
+    }
+    resultado.pendienteLocal = true; // aún no se envía al servidor
+    return resultado;
+  }
+
+  // Muestra encima de los datos del servidor lo que se hizo sin conexión y aún no se envía
+  useEffect(() => {
+    let vigente = true;
+    leerCambiosPendientes()
+      .then((ops) => {
+        if (vigente) setPendientes(aplicarOperaciones(initial.pendientes, ops, obra.id, (b, c, op) => construirLocal(b, c, op.pendienteId)));
+      })
+      .catch(() => { if (vigente) setPendientes(initial.pendientes); });
+    return () => { vigente = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial.pendientes]);
   const [q, setQ] = useState("");
   const [area, setArea] = useState("TODAS");
   const [estatus, setEstatus] = useState("TODOS");
@@ -76,21 +114,38 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
     try {
       const payload = { ...data, obraId: obra.id };
       if (editing) {
-        const res = await fetch(`/api/pendientes/${editing.id}`, {
-          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        const r = await enviarOEncolar({
+          metodo: "PATCH", url: `/api/pendientes/${editing.id}`, cuerpo: payload,
+          cambio: { tipo: "editar", obraId: obra.id, pendienteId: editing.id, baseActualizadoEn: editing.updatedAt ?? null, titulo: payload.tarea || editing.tarea },
         });
-        if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-        const updated = await res.json();
-        setPendientes((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+        if (!r.enviado) {
+          const local = construirLocal(editing, payload, editing.id);
+          setPendientes((prev) => prev.map((p) => (p.id === editing.id ? local : p)));
+          toast.success("Guardado sin conexión. Se enviará al reconectarte.");
+          setDialogOpen(false); setEditing(null);
+          return local;
+        }
+        if (!r.respuesta.ok) { const err = await r.respuesta.json(); throw new Error(err.error); }
+        const updated = await r.respuesta.json();
+        setPendientes((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated, pendienteLocal: false } : p)));
         toast.success("Pendiente actualizado");
         setDialogOpen(false); setEditing(null);
         return updated;
       } else {
-        const res = await fetch("/api/pendientes", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        const idLocal = nuevoIdLocal();
+        const r = await enviarOEncolar({
+          metodo: "POST", url: "/api/pendientes", cuerpo: payload,
+          cambio: { tipo: "crear", obraId: obra.id, pendienteId: idLocal, titulo: payload.tarea },
         });
-        if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-        const created = await res.json();
+        if (!r.enviado) {
+          const local = construirLocal(null, payload, idLocal);
+          setPendientes((prev) => [local, ...prev]);
+          toast.success("Pendiente guardado sin conexión. Se enviará al reconectarte.");
+          setDialogOpen(false); setEditing(null);
+          return local;
+        }
+        if (!r.respuesta.ok) { const err = await r.respuesta.json(); throw new Error(err.error); }
+        const created = await r.respuesta.json();
         setPendientes((prev) => [{ ...created, evidencias: [] }, ...prev]);
         toast.success("Pendiente creado");
         setDialogOpen(false); setEditing(null);
@@ -101,12 +156,19 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
 
   async function quickUpdate(id: string, patch: any) {
     try {
-      const res = await fetch(`/api/pendientes/${id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+      const actual = pendientes.find((p) => p.id === id);
+      const r = await enviarOEncolar({
+        metodo: "PATCH", url: `/api/pendientes/${id}`, cuerpo: patch,
+        cambio: { tipo: "editar", obraId: obra.id, pendienteId: id, baseActualizadoEn: actual?.updatedAt ?? null, titulo: actual?.tarea ?? "Pendiente" },
       });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-      const updated = await res.json();
-      setPendientes((prev) => prev.map((p) => (p.id === id ? { ...p, ...updated } : p)));
+      if (!r.enviado) {
+        setPendientes((prev) => prev.map((p) => (p.id === id ? construirLocal(p, patch, id) : p)));
+        toast.success("Guardado sin conexión. Se enviará al reconectarte.");
+        return;
+      }
+      if (!r.respuesta.ok) { const err = await r.respuesta.json(); throw new Error(err.error); }
+      const updated = await r.respuesta.json();
+      setPendientes((prev) => prev.map((p) => (p.id === id ? { ...p, ...updated, pendienteLocal: false } : p)));
     } catch (e: any) { toast.error(e.message || "Error"); }
   }
 
@@ -117,6 +179,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
   }
 
   async function crearCarpeta() {
+    if (requiereConexion()) return;
     const nombre = window.prompt("Nombre de la carpeta:");
     if (!nombre || !nombre.trim()) return;
     try {
@@ -133,6 +196,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
   }
 
   async function renombrarCarpeta() {
+    if (requiereConexion()) return;
     const actual = carpetas.find((c) => c.id === carpetaActiva);
     if (!actual) return;
     const nombre = window.prompt("Nuevo nombre:", actual.nombre);
@@ -149,6 +213,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
   }
 
   async function borrarCarpeta() {
+    if (requiereConexion()) return;
     const actual = carpetas.find((c) => c.id === carpetaActiva);
     if (!actual) return;
     if (!confirm(`¿Borrar la carpeta "${actual.nombre}"? Los pendientes no se borran.`)) return;
@@ -162,6 +227,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
   }
 
   async function toggleCarpeta(carpetaId: string, pendienteId: string, agregar: boolean) {
+    if (requiereConexion() || esIdLocal(pendienteId)) { if (esIdLocal(pendienteId)) toast.error("Este pendiente aún no se envía. Intenta cuando tengas conexión."); return; }
     try {
       const res = agregar
         ? await fetch(`/api/carpetas/${carpetaId}/pendientes`, {
@@ -178,7 +244,13 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
     } catch (e: any) { toast.error(e.message || "Error"); }
   }
 
+  const requiereConexion = () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) { toast.error("Esta acción necesita conexión a internet."); return true; }
+    return false;
+  };
+
   async function handleDelete(id: string) {
+    if (requiereConexion()) return;
     if (!confirm("¿Eliminar este pendiente?")) return;
     try {
       const res = await fetch(`/api/pendientes/${id}`, { method: "DELETE" });
@@ -188,7 +260,10 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
     } catch (e: any) { toast.error(e.message || "Error"); }
   }
 
-  function openDetail(p: any) { setDetailPendiente(p); setDetailOpen(true); }
+  function openDetail(p: any) {
+    if (esIdLocal(p.id)) { toast.info("Este pendiente aún no se envía. Podrás ver su detalle cuando tengas conexión."); return; }
+    setDetailPendiente(p); setDetailOpen(true);
+  }
 
   return (
     <div className="space-y-6">
@@ -325,7 +400,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
                         <EstatusBadge value={p.estatus} />
                       </div>
                     </div>
-                    <p className="font-medium text-sm text-slate-900 mt-1.5">{p.tarea}</p>
+                    <p className="font-medium text-sm text-slate-900 mt-1.5">{p.tarea}{p.pendienteLocal && <span className="ml-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 align-middle">Sin enviar</span>}</p>
                     {p.observaciones && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1 italic">{p.observaciones}</p>}
 
                     <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-slate-500">
@@ -421,7 +496,7 @@ export function PendientesClient({ obra, user, initial }: { obra: any; user: any
                         onClick={() => openDetail(p)}>
                         <TableCell className="font-mono text-xs text-slate-500">#{p.folio}</TableCell>
                         <TableCell>
-                          <p className="font-medium text-sm text-slate-900 line-clamp-2 max-w-md">{p.tarea}</p>
+                          <p className="font-medium text-sm text-slate-900 line-clamp-2 max-w-md">{p.tarea}{p.pendienteLocal && <span className="ml-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 align-middle">Sin enviar</span>}</p>
                           {p.observaciones && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1 max-w-md italic">{p.observaciones}</p>}
                         </TableCell>
                         <TableCell><AreaBadge value={p.area} /></TableCell>

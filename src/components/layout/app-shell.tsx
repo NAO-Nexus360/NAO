@@ -5,6 +5,7 @@ import { Topbar } from "./topbar";
 import { MobileMenuButton } from "./mobile-menu";
 import type { Session } from "next-auth";
 import { GuiaInstalacionAutomatica } from "@/components/guia-instalacion";
+import { OfflineManager } from "@/components/offline-manager";
 
 export function AppShell({
   user,
@@ -22,6 +23,7 @@ export function AppShell({
       <Sidebar user={user} obras={obras} mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar user={user} leftSlot={<MobileMenuButton onClick={() => setMobileOpen(true)} />} />
+        <OfflineManager usuarioId={user.id} />
         <GuiaInstalacionAutomatica />
         <main className="flex-1 overflow-y-auto">
           <div className="p-4 md:p-6 max-w-[1600px] mx-auto animate-fade-in">{children}</div>

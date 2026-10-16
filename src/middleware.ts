@@ -16,6 +16,7 @@ export const config = {
     "/api/programa-actividades/:path*",
     "/api/carpetas/:path*",
     "/api/push/:path*",
+    "/api/offline/:path*",
     "/api/configuracion/:path*",
     "/configuracion/:path*",
   ],

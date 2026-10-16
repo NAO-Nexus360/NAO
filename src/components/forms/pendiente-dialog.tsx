@@ -129,7 +129,7 @@ export function PendienteDialog({
 
       // Si se creó/actualizó OK, subir evidencias nuevas al pendiente
       const idPendiente = result?.id || pendiente?.id;
-      if (idPendiente && nuevasEvidencias.length) {
+      if (idPendiente && !String(idPendiente).startsWith("local-") && nuevasEvidencias.length) {
         await fetch(`/api/pendientes/${idPendiente}/evidencias`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

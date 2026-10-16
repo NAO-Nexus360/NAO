@@ -1,12 +1,13 @@
 "use client";
-import { useState } from "react";
-import { BellRing, Settings, Loader2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BellRing, Settings, Loader2, X, CloudOff } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NotificacionesPanel } from "@/components/notificaciones-panel";
 import { GuiaInstalacionDialog } from "@/components/guia-instalacion";
+import { contarCambiosPendientes, precargarPantallas, ultimaPrecarga } from "@/lib/offline/cliente";
 import { cn } from "@/lib/utils";
 
 const SUGERIDOS = [0, 1, 2, 3, 5, 7];
@@ -19,6 +20,24 @@ export function ConfiguracionClient({ diasIniciales, horaInicial }: { diasInicia
   const [hora, setHora] = useState<number>(horaInicial);
   const [guardando, setGuardando] = useState(false);
   const [guiaAbierta, setGuiaAbierta] = useState(false);
+  const [guardadoEn, setGuardadoEn] = useState<number | null>(null);
+  const [sinEnviar, setSinEnviar] = useState(0);
+  const [actualizando, setActualizando] = useState(false);
+
+  useEffect(() => {
+    setGuardadoEn(ultimaPrecarga());
+    contarCambiosPendientes().then(setSinEnviar).catch(() => {});
+  }, []);
+
+  async function actualizarDatosLocales() {
+    if (!navigator.onLine) { toast.error("Necesitas conexión para actualizar."); return; }
+    setActualizando(true);
+    try {
+      const r = await precargarPantallas(true);
+      setGuardadoEn(ultimaPrecarga());
+      if (r) toast.success(`${r.pantallas} pantallas guardadas para usar sin conexión${r.fallidas ? ` (${r.fallidas} no se pudieron guardar)` : ""}`);
+    } catch { toast.error("No se pudieron guardar las pantallas"); } finally { setActualizando(false); }
+  }
 
   const alternar = (d: number) =>
     setDias((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b)));
@@ -60,6 +79,26 @@ export function ConfiguracionClient({ diasIniciales, horaInicial }: { diasInicia
           <p className="text-sm text-slate-600">Agrégala a la pantalla de inicio para abrirla como una app y recibir notificaciones.</p>
           <Button variant="outline" onClick={() => setGuiaAbierta(true)}>Ver instrucciones</Button>
           <GuiaInstalacionDialog open={guiaAbierta} onOpenChange={setGuiaAbierta} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><CloudOff className="h-4 w-4 text-slate-500" /> Uso sin conexión</CardTitle>
+          <p className="text-xs text-slate-500">
+            La app guarda en este dispositivo las pantallas de tus obras para que puedas consultarlas sin internet y crear o modificar
+            pendientes. Los cambios se envían solos cuando vuelva la conexión.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-slate-700">
+            {guardadoEn ? `Última actualización: ${new Date(guardadoEn).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}.` : "Todavía no se han guardado pantallas en este dispositivo."}
+          </p>
+          {sinEnviar > 0 && <p className="text-sm text-amber-700">{sinEnviar} {sinEnviar === 1 ? "cambio" : "cambios"} por enviar.</p>}
+          <Button variant="outline" onClick={actualizarDatosLocales} disabled={actualizando}>
+            {actualizando && <Loader2 className="h-4 w-4 animate-spin" />} Guardar pantallas ahora
+          </Button>
+          <p className="text-xs text-slate-500">Sin conexión solo se pueden consultar las demás pantallas; únicamente los pendientes se pueden modificar.</p>
         </CardContent>
       </Card>
 

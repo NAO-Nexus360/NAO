@@ -10,6 +10,7 @@ import { LogOut, User as UserIcon } from "lucide-react";
 import type { Session } from "next-auth";
 import { ROLE_LABEL } from "@/lib/auth";
 import { NotificacionesBoton } from "@/components/notificaciones-boton";
+import { contarCambiosPendientes, limpiarDatosLocales } from "@/lib/offline/cliente";
 
 const roleBadge: Record<string, string> = {
   SUPERVISOR: "bg-purple-100 text-purple-700",
@@ -58,7 +59,12 @@ export function Topbar({ user, leftSlot }: { user: Session["user"]; leftSlot?: R
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50" onClick={() => signOut({ callbackUrl: "/login" })}>
+          <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50" onClick={async () => {
+            const sinEnviar = await contarCambiosPendientes().catch(() => 0);
+            if (sinEnviar > 0 && !confirm(`Tienes ${sinEnviar} ${sinEnviar === 1 ? "cambio" : "cambios"} sin enviar. Si cierras sesión ahora se perderán. ¿Cerrar sesión de todos modos?`)) return;
+            await limpiarDatosLocales();
+            signOut({ callbackUrl: "/login" });
+          }}>
             <LogOut className="h-4 w-4 mr-2" />
             Cerrar sesión
           </DropdownMenuItem>
