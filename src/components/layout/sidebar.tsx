@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import {
   LayoutDashboard, ListChecks, FileText, BookOpen, Building2, ChevronRight,
-  Folder, Users, Briefcase, ChevronDown, X, Building, MapPin, Target, CalendarRange,
+  Folder, Users, Briefcase, ChevronDown, X, Building, MapPin, Target, CalendarRange, Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -179,6 +179,9 @@ export function Sidebar({
         <div className="p-4 border-t border-slate-800 shrink-0">
           <Link href="/obras" onClick={onMobileClose} className="text-xs text-slate-400 hover:text-white transition flex items-center gap-2">
             <Folder className="h-3.5 w-3.5" /> Todas mis obras ({obras.length})
+          </Link>
+          <Link href="/configuracion" onClick={onMobileClose} className={cn("mt-3 text-xs transition flex items-center gap-2", pathname.startsWith("/configuracion") ? "text-white" : "text-slate-400 hover:text-white")}>
+            <Settings className="h-3.5 w-3.5" /> Configuración
           </Link>
         </div>
       </aside>

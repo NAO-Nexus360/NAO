@@ -128,6 +128,8 @@ model User {
   actividadesCreadas    ProgramaActividad[] @relation("CreadorProgramaActividad")
   responsabilidadesPendiente PendienteResponsable[]
   pushSuscripciones PushSuscripcion[]
+  preferenciaRecordatorio PreferenciaRecordatorio?
+  recordatoriosEnviados RecordatorioEnviado[]
   carpetasPendientes CarpetaPendientes[]
 }
 
@@ -279,6 +281,7 @@ model Pendiente {
   responsable   User?   @relation("ResponsablePendiente", fields: [responsableId], references: [id])
   responsables  PendienteResponsable[]
   enCarpetas    CarpetaPendiente[]
+  recordatoriosEnviados RecordatorioEnviado[]
 
   supervisorId String?
   supervisor   User?   @relation("SupervisorPendiente", fields: [supervisorId], references: [id])
@@ -542,4 +545,34 @@ model PushClaves {
   clavePublica  String @db.Text
   clavePrivada  String @db.Text
   createdAt   DateTime @default(now())
+}
+
+// =========================================
+// RECORDATORIOS DE VENCIMIENTO (cada persona elige cuántos días antes)
+// =========================================
+
+// Días de anticipación que eligió cada usuario (0 = el mismo día de la entrega)
+model PreferenciaRecordatorio {
+  usuarioId String @id
+  dias      Int[]
+
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+}
+
+// Registro de recordatorios ya enviados, para no repetirlos
+model RecordatorioEnviado {
+  id           String   @id @default(cuid())
+  usuarioId    String
+  pendienteId  String
+  dias         Int
+  fechaEntrega String   // fecha de entrega (AAAA-MM-DD) al momento de avisar
+
+  usuario   User      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pendiente Pendiente @relation(fields: [pendienteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([usuarioId, pendienteId, dias, fechaEntrega])
 }
