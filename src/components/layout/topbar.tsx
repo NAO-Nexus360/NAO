@@ -9,6 +9,7 @@ import {
 import { LogOut, User as UserIcon } from "lucide-react";
 import type { Session } from "next-auth";
 import { ROLE_LABEL } from "@/lib/auth";
+import { NotificacionesBoton } from "@/components/notificaciones-boton";
 
 const roleBadge: Record<string, string> = {
   SUPERVISOR: "bg-purple-100 text-purple-700",
@@ -32,6 +33,8 @@ export function Topbar({ user, leftSlot }: { user: Session["user"]; leftSlot?: R
         </div>
       </div>
 
+      <div className="flex items-center gap-1">
+      <NotificacionesBoton />
       <DropdownMenu>
         <DropdownMenuTrigger className="flex items-center gap-3 rounded-full p-1 hover:bg-slate-50 transition-colors outline-none focus:ring-2 focus:ring-slate-300">
           <div className="hidden sm:block text-right">
@@ -61,6 +64,7 @@ export function Topbar({ user, leftSlot }: { user: Session["user"]; leftSlot?: R
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </header>
   );
 }

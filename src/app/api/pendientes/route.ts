@@ -6,6 +6,7 @@ import { authOptions, puedeEditarPendiente, soloLectura } from "@/lib/auth";
 import { Area, Estatus, Prioridad } from "@prisma/client";
 import { userHasObraAccess } from "@/lib/access";
 import { notificarNuevoPendiente } from "@/lib/email";
+import { enviarPushPorCorreos } from "@/lib/push";
 import { includeResponsables, listaResponsables, textoResponsables, limpiarIds, validarResponsables, guardarResponsables } from "@/lib/responsables";
 
 const createSchema = z.object({
@@ -131,6 +132,13 @@ export async function POST(req: NextRequest) {
 
       // No notificarse a uno mismo
       if (session.user.email) destinatarios.delete(session.user.email);
+
+      // 🔔 Notificación al teléfono (si activaron las notificaciones)
+      await enviarPushPorCorreos(Array.from(destinatarios), {
+        titulo: `Nuevo pendiente en ${pendiente.obra.nombre}`,
+        cuerpo: pendiente.tarea,
+        url: `/obras/${pendiente.obra.id}/pendientes`,
+      });
 
       if (destinatarios.size > 0) {
         await notificarNuevoPendiente(Array.from(destinatarios), {

@@ -5,6 +5,7 @@ import { authOptions, puedeCompletar, puedeEditarPendiente, soloLectura } from "
 import { Estatus } from "@prisma/client";
 import { includeResponsables, listaResponsables, limpiarIds, validarResponsables, guardarResponsables } from "@/lib/responsables";
 import { notificarNuevoPendiente } from "@/lib/email";
+import { enviarPushPorCorreos } from "@/lib/push";
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -123,6 +124,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
     // No notificarse a uno mismo
     if (session.user.email) destinatarios.delete(session.user.email);
+
+    // 🔔 Notificación al teléfono (si activaron las notificaciones)
+    await enviarPushPorCorreos(Array.from(destinatarios), {
+      titulo: `Te asignaron un pendiente en ${current.obra.nombre}`,
+      cuerpo: pendiente.tarea,
+      url: `/obras/${current.obraId}/pendientes`,
+    });
 
     if (destinatarios.size > 0) {
       await notificarNuevoPendiente(

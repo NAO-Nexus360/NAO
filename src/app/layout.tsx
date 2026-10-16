@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Toaster } from "sonner";
@@ -6,6 +6,15 @@ import { Toaster } from "sonner";
 export const metadata: Metadata = {
   title: "NAO — Nexus Avance de Obra",
   description: "Plataforma profesional de control de obra · Nexus 360",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "NAO", statusBarStyle: "black-translucent" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

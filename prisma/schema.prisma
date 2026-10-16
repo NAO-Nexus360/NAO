@@ -127,6 +127,7 @@ model User {
   programasSubidos      ProgramaObra[] @relation("SubidoProgramaObra")
   actividadesCreadas    ProgramaActividad[] @relation("CreadorProgramaActividad")
   responsabilidadesPendiente PendienteResponsable[]
+  pushSuscripciones PushSuscripcion[]
   carpetasPendientes CarpetaPendientes[]
 }
 
@@ -513,4 +514,32 @@ model CarpetaPendiente {
 
   @@id([carpetaId, pendienteId])
   @@index([pendienteId])
+}
+
+// =========================================
+// NOTIFICACIONES PUSH (web, para la app instalable)
+// =========================================
+
+// Un dispositivo/navegador de un usuario que activó notificaciones
+model PushSuscripcion {
+  id        String   @id @default(cuid())
+  usuarioId String
+  endpoint  String   @unique @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  agente    String?  @db.Text
+
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
+}
+
+// Claves VAPID del servidor (una sola fila). Se generan automáticamente la primera vez.
+model PushClaves {
+  id          String   @id @default("unica")
+  clavePublica  String @db.Text
+  clavePrivada  String @db.Text
+  createdAt   DateTime @default(now())
 }

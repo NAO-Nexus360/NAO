@@ -15,5 +15,6 @@ export const config = {
     "/api/programas/:path*",
     "/api/programa-actividades/:path*",
     "/api/carpetas/:path*",
+    "/api/push/:path*",
   ],
 };
