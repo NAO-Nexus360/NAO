@@ -108,7 +108,7 @@ export async function precargarPantallas(forzar = false): Promise<{ pantallas: n
         if (!r.ok || r.redirected) { fallidas++; continue; }
         pantallas++;
         const html = await r.text();
-        for (const m of html.matchAll(/\/_next\/static\/[^"'\s)\\]+\.(?:js|css)/g)) archivos.add(m[0]);
+        for (const m of html.matchAll(/\/_next\/static\/[^"'\s\\<>]+?\.(?:js|css)(?=["'\s\\<>?]|$)/g)) archivos.add(m[0]);
       } catch { fallidas++; }
     }
   }
