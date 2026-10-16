@@ -23,11 +23,15 @@ export function diasHasta(fechaEntrega: string, hoy: string): number {
   return Math.round((Date.UTC(y1, m1 - 1, d1) - Date.UTC(y2, m2 - 1, d2)) / DIA_MS);
 }
 
+export type PreferenciaPersona = { dias: number[]; hora: number };
+
 // Agrupa por persona y por días de anticipación. `yaEnviados` contiene claves "usuario|pendiente|dias|fecha".
+// El aviso se envía cuando la hora actual ya alcanzó la hora elegida (así un retraso no lo hace perderse).
 export function calcularRecordatorios(
   pendientes: PendienteRecordable[],
-  preferencias: Map<string, number[]>,
+  preferencias: Map<string, PreferenciaPersona>,
   hoy: string,
+  horaActual: number,
   yaEnviados: Set<string> = new Set()
 ): RecordatorioCalculado[] {
   const grupos = new Map<string, RecordatorioCalculado>();
@@ -35,8 +39,8 @@ export function calcularRecordatorios(
     const faltan = diasHasta(p.fechaEntrega, hoy);
     if (faltan < 0) continue;
     for (const usuarioId of new Set(p.usuarioIds)) {
-      const dias = preferencias.get(usuarioId);
-      if (!dias || !dias.includes(faltan)) continue;
+      const pref = preferencias.get(usuarioId);
+      if (!pref || !pref.dias.includes(faltan) || horaActual < pref.hora) continue;
       if (yaEnviados.has(claveRecordatorio(usuarioId, p.id, faltan, p.fechaEntrega))) continue;
       const k = `${usuarioId}|${faltan}`;
       const g = grupos.get(k) ?? { usuarioId, dias: faltan, pendientes: [] };

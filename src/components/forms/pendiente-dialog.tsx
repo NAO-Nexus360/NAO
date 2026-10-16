@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Upload, X, FileText, Image as ImageIcon } from "lucide-react";
+import { Loader2, Upload, X, FileText, Image as ImageIcon, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { AREAS_LIST, AREA_LABEL } from "@/components/common/badges";
 import { prepararArchivo } from "@/lib/preparar-archivo";
@@ -313,6 +313,10 @@ export function PendienteDialog({
                 <span className="text-sm text-slate-600">{uploading ? "Subiendo..." : "Subir fotos o PDFs"}</span>
                 <input type="file" multiple accept="image/*,.pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
               </label>
+                <label className="mt-1 flex items-center justify-center gap-2 cursor-pointer rounded-md border border-slate-200 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                  <Camera className="h-4 w-4" /> Tomar foto
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleUpload} disabled={uploading} />
+                </label>
               {nuevasEvidencias.length > 0 && (
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                   {nuevasEvidencias.map((ev, i) => (

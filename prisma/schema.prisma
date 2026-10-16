@@ -555,6 +555,7 @@ model PushClaves {
 model PreferenciaRecordatorio {
   usuarioId String @id
   dias      Int[]
+  hora      Int    @default(8) // hora del día (0-23, hora de México) a la que llega el aviso
 
   usuario User @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 

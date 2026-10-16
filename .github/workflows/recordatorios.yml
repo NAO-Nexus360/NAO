@@ -1,0 +1,15 @@
+# Llama cada hora a NAO para enviar los recordatorios de vencimiento
+# a la hora que cada persona eligió. La ruta no repite avisos ya enviados.
+name: Recordatorios de vencimiento
+
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  recordatorios:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enviar recordatorios
+        run: curl --fail --silent --show-error --max-time 60 https://nao.nexus-360.mx/api/cron/recordatorios

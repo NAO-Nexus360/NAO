@@ -9,7 +9,7 @@ import { PrioridadBadge, EstatusBadge, AreaBadge } from "@/components/common/bad
 import { formatDate, isOverdue, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  Calendar, User, Briefcase, FileText, Image as ImageIcon, X, ChevronLeft, ChevronRight,
+  Calendar, User, Briefcase, FileText, Image as ImageIcon, X, ChevronLeft, ChevronRight, Camera,
   Upload, Loader2, Trash2,
 } from "lucide-react";
 import { listaResponsables } from "@/lib/responsables-vista";
@@ -189,6 +189,13 @@ export function PendienteDetailDialog({
                 Fotos {imagenes.length > 0 && `(${imagenes.length})`}
               </h4>
               {canUpload && (
+                <div className="flex items-center gap-2">
+                <label className="inline-flex">
+                  <Button asChild size="sm" variant="outline" disabled={uploading}>
+                    <span className="cursor-pointer"><Camera className="h-4 w-4" /> Tomar foto</span>
+                  </Button>
+                  <input type="file" accept="image/*" capture="environment" onChange={handleUpload} disabled={uploading} className="hidden" />
+                </label>
                 <label className="inline-flex">
                   <Button asChild size="sm" disabled={uploading}>
                     <span className="cursor-pointer">
@@ -208,6 +215,7 @@ export function PendienteDetailDialog({
                     className="hidden"
                   />
                 </label>
+                </div>
               )}
             </div>
 

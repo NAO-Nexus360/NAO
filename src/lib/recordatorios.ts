@@ -3,7 +3,7 @@
 // (los que tiene como responsable y los de la empresa contratista a la que pertenece).
 import { Estatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { hoyMX } from "@/lib/fechas-mx";
+import { hoyMX, horaMX } from "@/lib/fechas-mx";
 import { enviarPush } from "@/lib/push";
 import { includeResponsables, listaResponsables } from "@/lib/responsables";
 import {
@@ -15,7 +15,7 @@ export async function ejecutarRecordatorios() {
   const preferencias = await prisma.preferenciaRecordatorio.findMany({ where: { NOT: { dias: { isEmpty: true } } } });
   if (preferencias.length === 0) return { personas: 0, pendientes: 0, avisos: 0, enviados: 0 };
 
-  const prefMap = new Map(preferencias.map((p) => [p.usuarioId, p.dias]));
+  const prefMap = new Map(preferencias.map((p) => [p.usuarioId, { dias: p.dias, hora: p.hora }]));
   const maxDias = Math.max(...preferencias.flatMap((p) => p.dias));
   const desde = new Date(`${hoy}T00:00:00Z`);
   const hasta = new Date(desde.getTime() + maxDias * 86400000);
@@ -50,7 +50,7 @@ export async function ejecutarRecordatorios() {
   });
   const yaEnviados = new Set(previos.map((r) => claveRecordatorio(r.usuarioId, r.pendienteId, r.dias, r.fechaEntrega)));
 
-  const avisos = calcularRecordatorios(recordables, prefMap, hoy, yaEnviados);
+  const avisos = calcularRecordatorios(recordables, prefMap, hoy, horaMX(), yaEnviados);
   let enviados = 0;
   for (const a of avisos) {
     const unico = a.pendientes.length === 1 ? a.pendientes[0] : null;

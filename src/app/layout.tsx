@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Plataforma profesional de control de obra · Nexus 360",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
-  appleWebApp: { capable: true, title: "NAO", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Nexus Avance de Obra", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {

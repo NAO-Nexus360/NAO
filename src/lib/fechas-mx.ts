@@ -10,6 +10,12 @@ export function hoyMX(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: ZONA_MX, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
+// Hora actual en México (0 a 23)
+export function horaMX(): number {
+  const h = new Intl.DateTimeFormat("en-GB", { timeZone: ZONA_MX, hour: "2-digit", hourCycle: "h23" }).format(new Date());
+  return Number(h);
+}
+
 // Convierte una fecha guardada (Date o string) a "YYYY-MM-DD" según México
 export function isoMX(fecha: Date | string | null | undefined): string {
   if (!fecha) return "";

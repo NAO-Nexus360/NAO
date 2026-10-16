@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Plus, Loader2, Upload, X, Cloud, Users, TrendingUp, Calendar } from "lucide-react";
+import { BookOpen, Plus, Loader2, Upload, X, Cloud, Users, TrendingUp, Calendar, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -185,6 +185,10 @@ export function BitacoraClient({ obra, user, initial }: { obra: any; user: any; 
                   {uploading ? (<Loader2 className="h-5 w-5 text-slate-400 animate-spin mb-1" />) : (<Upload className="h-5 w-5 text-slate-400 mb-1" />)}
                   <span className="text-sm text-slate-600">{uploading ? "Subiendo..." : "Subir fotos"}</span>
                   <input type="file" multiple accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
+                </label>
+                <label className="mt-1 flex items-center justify-center gap-2 cursor-pointer rounded-md border border-slate-200 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                  <Camera className="h-4 w-4" /> Tomar foto
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleUpload} disabled={uploading} />
                 </label>
                 {evidencias.length > 0 && (
                   <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
