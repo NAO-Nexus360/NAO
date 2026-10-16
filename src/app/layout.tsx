@@ -4,11 +4,11 @@ import { Providers } from "@/components/providers";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "NAO — Nexus Avance de Obra",
+  title: "Nexus obra",
   description: "Plataforma profesional de control de obra · Nexus 360",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
-  appleWebApp: { capable: true, title: "Nexus Avance de Obra", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Nexus obra", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {

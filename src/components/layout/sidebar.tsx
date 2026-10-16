@@ -63,8 +63,8 @@ export function Sidebar({
             <Building2 className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1">
-            <div className="font-semibold text-sm leading-tight">NAO</div>
-            <div className="text-[11px] text-slate-400 leading-tight">Nexus Avance de Obra</div>
+            <div className="font-semibold text-sm leading-tight">Nexus obra</div>
+            <div className="text-[11px] text-slate-400 leading-tight">Nexus 360</div>
           </div>
           <button onClick={onMobileClose} className="lg:hidden text-slate-400 hover:text-white">
             <X className="h-5 w-5" />

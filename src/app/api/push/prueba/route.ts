@@ -8,7 +8,7 @@ export async function POST() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const r = await enviarPush([session.user.id], {
-    titulo: "NAO",
+    titulo: "Nexus obra",
     cuerpo: "Las notificaciones están funcionando.",
     url: "/obras",
   });

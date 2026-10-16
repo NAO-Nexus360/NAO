@@ -1,5 +1,5 @@
 // Parte del navegador del modo sin conexión: envío de cambios, descarga de pantallas y limpieza.
-import { almacenIndexedDB, encolarCambio, sincronizarOutbox, RespuestaRed, ResultadoSincronizacion, OperacionOffline } from "@/lib/offline/outbox";
+import { almacenIndexedDB, encolarCambio, sincronizarOutbox, RespuestaRed, ResultadoSincronizacion, OperacionOffline, Entidad } from "@/lib/offline/outbox";
 
 export const EVENTO_SINCRONIZADO = "nao-sincronizado";
 const CLAVE_PRECARGA = "nao-offline-precarga";
@@ -22,7 +22,7 @@ export async function enviarOEncolar(opts: {
   metodo: "POST" | "PATCH";
   url: string;
   cuerpo: Record<string, any>;
-  cambio: { tipo: "crear" | "editar"; obraId: string; pendienteId: string; baseActualizadoEn?: string | null; titulo: string };
+  cambio: { entidad?: Entidad; tipo: "crear" | "editar"; obraId: string; pendienteId: string; baseActualizadoEn?: string | null; titulo: string };
 }): Promise<{ enviado: true; respuesta: Response } | { enviado: false; operacion: OperacionOffline }> {
   const sinRed = typeof navigator !== "undefined" && navigator.onLine === false;
   if (!sinRed) {

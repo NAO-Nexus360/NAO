@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Plus, Upload, Loader2, Trash2, ListTodo, Calendar, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { FileText, Plus, Upload, Loader2, Trash2, ListTodo, Calendar, ChevronDown, ChevronUp, Info, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/utils";
 import { prepararArchivo } from "@/lib/preparar-archivo";
+import { enviarOEncolar, leerCambiosPendientes } from "@/lib/offline/cliente";
+import { aplicarOperaciones, nuevoIdLocal, esIdLocal } from "@/lib/offline/outbox";
 
 export function MinutasClient({ obra, user, initial }: { obra: any; user: any; initial: any }) {
   const router = useRouter();
   const [minutas, setMinutas] = useState<any[]>(initial.minutas);
+  const [editando, setEditando] = useState<any | null>(null);
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const isReadonly = user.role === "CONTRATISTA";
@@ -29,7 +32,35 @@ export function MinutasClient({ obra, user, initial }: { obra: any; user: any; i
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  function construirLocal(base: any | null, cuerpo: Record<string, any>, id: string) {
+    const fechaLocal = cuerpo.fecha ? new Date(cuerpo.fecha).toISOString() : base?.fecha ?? new Date().toISOString();
+    return {
+      ...(base ?? { id, subidoPor: { name: user.name }, _count: { pendientes: 0 }, archivoUrl: null, archivoNombre: null }),
+      titulo: cuerpo.titulo ?? base?.titulo,
+      contenido: cuerpo.contenido ?? base?.contenido,
+      fecha: fechaLocal,
+      minutaLocal: true,
+    };
+  }
+
+  // Muestra encima de lo guardado las minutas que todavía no se han enviado
+  useEffect(() => {
+    let vigente = true;
+    leerCambiosPendientes()
+      .then((ops) => { if (vigente) setMinutas(aplicarOperaciones(initial.minutas, ops, obra.id, (b, c, op) => construirLocal(b, c, op.pendienteId), "minuta")); })
+      .catch(() => { if (vigente) setMinutas(initial.minutas); });
+    return () => { vigente = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial.minutas]);
+
+  function abrirEdicion(m: any) {
+    setEditando(m); setTitulo(m.titulo); setContenido(m.contenido);
+    setFecha(String(m.fecha).split("T")[0]); setArchivoUrl(m.archivoUrl ?? null); setArchivoNombre(m.archivoNombre ?? null);
+    setOpen(true);
+  }
+
   function reset() {
+    setEditando(null);
     setTitulo(""); setContenido(""); setFecha(new Date().toISOString().split("T")[0]);
     setArchivoUrl(null); setArchivoNombre(null);
   }
@@ -51,23 +82,43 @@ export function MinutasClient({ obra, user, initial }: { obra: any; user: any; i
   }
 
   async function handleCreate() {
-    if (!titulo || !contenido) { toast.error("Título y contenido requeridos"); return; }
+    if (!titulo.trim() || !contenido.trim()) { toast.error("Título y contenido requeridos"); return; }
     setSaving(true);
     try {
-      const res = await fetch("/api/minutas", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ obraId: obra.id, titulo, contenido, fecha, archivoUrl, archivoNombre }),
+      const cuerpo = editando
+        ? { titulo, contenido, fecha }
+        : { obraId: obra.id, titulo, contenido, fecha, archivoUrl, archivoNombre };
+      const idLocal = editando ? editando.id : nuevoIdLocal();
+      const r = await enviarOEncolar({
+        metodo: editando ? "PATCH" : "POST",
+        url: editando ? `/api/minutas/${editando.id}` : "/api/minutas",
+        cuerpo,
+        cambio: {
+          entidad: "minuta", tipo: editando ? "editar" : "crear", obraId: obra.id, pendienteId: idLocal,
+          baseActualizadoEn: editando?.updatedAt ?? null, titulo,
+        },
       });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-      const minuta = await res.json();
-      setMinutas((prev) => [{ ...minuta, subidoPor: { name: user.name }, _count: { pendientes: 0 } }, ...prev]);
-      toast.success("Minuta guardada");
-      setOpen(false); reset(); router.refresh();
+      if (r.enviado) {
+        if (!r.respuesta.ok) { const err = await r.respuesta.json().catch(() => ({})); throw new Error(err.error || "No se pudo guardar"); }
+        const minuta = await r.respuesta.json();
+        setMinutas((prev) => editando
+          ? prev.map((m) => (m.id === editando.id ? { ...m, ...minuta, minutaLocal: false } : m))
+          : [{ ...minuta, subidoPor: { name: user.name }, _count: { pendientes: 0 } }, ...prev]);
+        toast.success("Minuta guardada");
+        router.refresh();
+      } else {
+        setMinutas((prev) => editando
+          ? prev.map((m) => (m.id === editando.id ? construirLocal(m, cuerpo, m.id) : m))
+          : [construirLocal(null, cuerpo, idLocal), ...prev]);
+        toast.success("Guardada sin conexión. Se enviará al reconectarte.");
+      }
+      setOpen(false); reset();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
   }
 
   async function handleDelete(id: string) {
+    if (esIdLocal(id) || (typeof navigator !== "undefined" && !navigator.onLine)) { toast.error("Para eliminar una minuta necesitas conexión y que ya esté enviada."); return; }
     if (!confirm("¿Eliminar esta minuta?")) return;
     try {
       const res = await fetch(`/api/minutas/${id}`, { method: "DELETE" });
@@ -119,6 +170,7 @@ export function MinutasClient({ obra, user, initial }: { obra: any; user: any; i
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-slate-900">{m.titulo}</h3>
+                      {m.minutaLocal && <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px]">Sin enviar</Badge>}
                       {m._count?.pendientes > 0 && (
                         <Badge variant="info" className="gap-1">
                           <ListTodo className="h-3 w-3" /> {m._count.pendientes} pendientes
@@ -134,6 +186,11 @@ export function MinutasClient({ obra, user, initial }: { obra: any; user: any; i
                     <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setExpanded(expanded === m.id ? null : m.id)}>
                       {expanded === m.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
+                    {!isReadonly && (
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => abrirEdicion(m)} title="Editar">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     {isSupervisor && (
                       <Button size="icon" variant="ghost" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={() => handleDelete(m.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
@@ -162,7 +219,7 @@ export function MinutasClient({ obra, user, initial }: { obra: any; user: any; i
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Nueva minuta</DialogTitle>
+            <DialogTitle>{editando ? "Editar minuta" : "Nueva minuta"}</DialogTitle>
             <DialogDescription>Captura los acuerdos y pendientes de la junta.</DialogDescription>
           </DialogHeader>
 
@@ -187,22 +244,23 @@ export function MinutasClient({ obra, user, initial }: { obra: any; user: any; i
               <Textarea id="m-contenido" value={contenido} onChange={(e) => setContenido(e.target.value)}
                 placeholder="Acuerdos, asistentes, pendientes, observaciones..." rows={10} />
             </div>
-            <div className="space-y-2">
+            {!editando && <div className="space-y-2">
               <Label>Archivo adjunto (opcional)</Label>
               <div className="border-2 border-dashed border-slate-200 rounded-lg p-4">
                 <label className="flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 rounded transition py-2">
                   {uploading ? (<Loader2 className="h-5 w-5 text-slate-400 animate-spin mb-1" />) : (<Upload className="h-5 w-5 text-slate-400 mb-1" />)}
                   <span className="text-sm text-slate-600">{uploading ? "Subiendo..." : archivoNombre || "Subir PDF, foto o documento"}</span>
-                  <input type="file" accept=".pdf,image/*,.doc,.docx" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                  <input type="file" accept=".pdf,image/*,.doc,.docx" className="hidden" onChange={handleFileUpload} disabled={uploading || (typeof navigator !== "undefined" && !navigator.onLine)} />
                 </label>
               </div>
-            </div>
+              <p className="text-xs text-slate-500">Los archivos adjuntos necesitan internet.</p>
+            </div>}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar minuta"}
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : editando ? "Guardar cambios" : "Guardar minuta"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,8 +1,8 @@
-// Service worker de NAO: notificaciones push y uso sin conexión.
+// Service worker de Nexus obra: notificaciones push y uso sin conexión.
 //
 // Sin conexión: guarda las pantallas que se visitan (y los archivos que necesitan) para poder
 // abrirlas sin internet. Con conexión siempre pide primero la versión más reciente.
-const VERSION = "v1";
+const VERSION = "v2";
 const CACHE_PAGINAS = `nao-paginas-${VERSION}`;
 const CACHE_ESTATICOS = `nao-estaticos-${VERSION}`;
 const ESPERA_RED_MS = 7000;
@@ -49,7 +49,7 @@ const esEstatico = (url) =>
 
 const respuestaSinConexion = () =>
   new Response(
-    `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NAO</title>
+    `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Nexus obra</title>
 <style>body{font-family:system-ui,sans-serif;background:#f8fafc;color:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:24px;text-align:center}
 .c{max-width:340px}button{margin-top:16px;padding:10px 18px;border:0;border-radius:8px;background:#0f172a;color:#fff;font-size:15px}</style></head>
 <body><div class="c"><h1>Sin conexión</h1><p>Esta pantalla todavía no se guardó en tu teléfono. Conéctate a internet y ábrela una vez para poder verla sin señal.</p>
@@ -105,10 +105,10 @@ self.addEventListener("push", (event) => {
   try {
     datos = event.data ? event.data.json() : {};
   } catch (e) {
-    datos = { titulo: "NAO", cuerpo: event.data ? event.data.text() : "" };
+    datos = { titulo: "Nexus obra", cuerpo: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(datos.titulo || "NAO", {
+    self.registration.showNotification(datos.titulo || "Nexus obra", {
       body: datos.cuerpo || "",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",

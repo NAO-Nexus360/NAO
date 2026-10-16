@@ -23,7 +23,7 @@ export default function LoginPage() {
       if (res?.error) {
         toast.error("Correo o contraseña incorrectos");
       } else {
-        toast.success("Bienvenido a NAO");
+        toast.success("Bienvenido a Nexus obra");
         router.push("/obras");
         router.refresh();
       }
@@ -42,8 +42,8 @@ export default function LoginPage() {
           <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shadow-xl mb-4">
             <Building2 className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">NAO</h1>
-          <p className="text-sm text-slate-500 mt-1">Nexus Avance de Obra · Nexus 360</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Nexus obra</h1>
+          <p className="text-sm text-slate-500 mt-1">Avance de obra · Nexus 360</p>
         </div>
 
         <Card className="shadow-xl border-slate-200/80">

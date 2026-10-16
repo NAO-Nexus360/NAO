@@ -1,4 +1,4 @@
-# 🏗️ NAO — Nexus Avance de Obra
+# 🏗️ Nexus obra (NAO)
 
 Sistema profesional de control de obra de **Nexus 360**. Plataforma multi-obra para
 supervisores, contratistas responsables y contratistas, con permisos por rol.

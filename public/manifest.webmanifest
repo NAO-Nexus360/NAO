@@ -1,6 +1,6 @@
 {
-  "name": "Nexus Avance de Obra",
-  "short_name": "Nexus Avance de Obra",
+  "name": "Nexus obra",
+  "short_name": "Nexus obra",
   "description": "Control de obra de Nexus 360",
   "start_url": "/obras",
   "scope": "/",

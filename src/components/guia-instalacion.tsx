@@ -57,7 +57,7 @@ export function GuiaInstalacionDialog({ open, onOpenChange }: { open: boolean; o
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Instala NAO en tu teléfono</DialogTitle>
+          <DialogTitle>Instala Nexus obra en tu teléfono</DialogTitle>
           <DialogDescription>
             Agrégala a la pantalla de inicio para abrirla como una app y recibir notificaciones.
           </DialogDescription>

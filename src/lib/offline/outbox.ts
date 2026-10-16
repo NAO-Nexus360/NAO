@@ -1,11 +1,15 @@
-// Cola de cambios hechos sin conexión (solo pendientes). Se envían al servidor al reconectarse.
+// Cola de cambios hechos sin conexión (pendientes y minutas). Se envían al servidor al reconectarse.
 // La lógica no depende del navegador: el almacenamiento se inyecta, para poder probarla.
+
+export type Entidad = "pendiente" | "minuta";
+const RUTA: Record<Entidad, string> = { pendiente: "/api/pendientes", minuta: "/api/minutas" };
 
 export type OperacionOffline = {
   id: string;
+  entidad?: Entidad; // las operaciones guardadas antes de las minutas no lo traen: son pendientes
   tipo: "crear" | "editar";
   obraId: string;
-  pendienteId: string; // id real, o "local-..." si todavía no existe en el servidor
+  pendienteId: string; // id real del pendiente/minuta, o "local-..." si todavía no existe en el servidor
   cuerpo: Record<string, any>;
   baseActualizadoEn: string | null; // updatedAt que tenía el pendiente cuando se editó sin conexión
   titulo: string;
@@ -25,10 +29,10 @@ export const nuevoIdLocal = () => `local-${Date.now().toString(36)}-${Math.rando
 // Si ya hay un cambio pendiente del mismo pendiente, se combinan (gana lo más reciente)
 export async function encolarCambio(
   almacen: AlmacenOutbox,
-  cambio: { tipo: "crear" | "editar"; obraId: string; pendienteId: string; cuerpo: Record<string, any>; baseActualizadoEn?: string | null; titulo: string }
+  cambio: { entidad?: Entidad; tipo: "crear" | "editar"; obraId: string; pendienteId: string; cuerpo: Record<string, any>; baseActualizadoEn?: string | null; titulo: string }
 ): Promise<OperacionOffline> {
   const existentes = await almacen.todos();
-  const previa = existentes.find((o) => o.pendienteId === cambio.pendienteId);
+  const previa = existentes.find((o) => o.pendienteId === cambio.pendienteId && (o.entidad ?? "pendiente") === (cambio.entidad ?? "pendiente"));
   if (previa) {
     const combinada: OperacionOffline = {
       ...previa,
@@ -40,6 +44,7 @@ export async function encolarCambio(
   }
   const op: OperacionOffline = {
     id: `op-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    entidad: cambio.entidad ?? "pendiente",
     tipo: cambio.tipo,
     obraId: cambio.obraId,
     pendienteId: cambio.pendienteId,
@@ -58,10 +63,11 @@ export function aplicarOperaciones<T extends { id: string }>(
   pendientes: T[],
   ops: OperacionOffline[],
   obraId: string,
-  construirLocal: (base: T | null, cuerpo: Record<string, any>, op: OperacionOffline) => T
+  construirLocal: (base: T | null, cuerpo: Record<string, any>, op: OperacionOffline) => T,
+  entidad: Entidad = "pendiente"
 ): T[] {
   let lista = [...pendientes];
-  for (const op of [...ops].filter((o) => o.obraId === obraId).sort((a, b) => a.creadoEn - b.creadoEn)) {
+  for (const op of [...ops].filter((o) => o.obraId === obraId && (o.entidad ?? "pendiente") === entidad).sort((a, b) => a.creadoEn - b.creadoEn)) {
     const i = lista.findIndex((p) => p.id === op.pendienteId);
     if (op.tipo === "crear") {
       const local = construirLocal(null, op.cuerpo, op);
@@ -97,9 +103,10 @@ export async function sincronizarOutbox(almacen: AlmacenOutbox, red: LlamadaRed)
   const idsReales = new Map<string, string>(); // id local -> id real
 
   for (const op of ops) {
+    const ruta = RUTA[op.entidad ?? "pendiente"];
     try {
       if (op.tipo === "crear") {
-        const r = await red("POST", "/api/pendientes", { ...op.cuerpo, obraId: op.obraId });
+        const r = await red("POST", ruta, { ...op.cuerpo, obraId: op.obraId });
         if (r.ok) {
           idsReales.set(op.pendienteId, r.json?.id);
           await almacen.borrar(op.id);
@@ -116,7 +123,7 @@ export async function sincronizarOutbox(almacen: AlmacenOutbox, red: LlamadaRed)
           await almacen.borrar(op.id); // su creación se descartó: no hay a qué aplicarle el cambio
           continue;
         }
-        const actual = await red("GET", `/api/pendientes/${idReal}`);
+        const actual = await red("GET", `${ruta}/${idReal}`);
         if (actual.status === 404) {
           await almacen.borrar(op.id);
           resultado.errores.push(`"${op.titulo}" ya no existe; se descartó tu cambio.`);
@@ -132,7 +139,7 @@ export async function sincronizarOutbox(almacen: AlmacenOutbox, red: LlamadaRed)
         }
         const cambioAjeno =
           !!op.baseActualizadoEn && !!actual.json?.updatedAt && new Date(actual.json.updatedAt) > new Date(op.baseActualizadoEn);
-        const r = await red("PATCH", `/api/pendientes/${idReal}`, op.cuerpo);
+        const r = await red("PATCH", `${ruta}/${idReal}`, op.cuerpo);
         if (r.ok) {
           await almacen.borrar(op.id);
           resultado.enviados++;

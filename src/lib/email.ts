@@ -162,7 +162,7 @@ export async function notificarNuevoPendiente(
   <div style="font-family:Arial,Helvetica,sans-serif;background:#f1f5f9;padding:24px">
     <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0">
       <div style="background:#0f172a;padding:20px 28px">
-        <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold">&#127959;&#65039; NAO — Nexus 360</p>
+        <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold">&#127959;&#65039; Nexus obra — Nexus 360</p>
         <p style="margin:4px 0 0;color:#94a3b8;font-size:13px">${opciones.asignacion ? "Pendiente asignado a ti" : "Nuevo pendiente asignado"}</p>
       </div>
       <div style="padding:28px">
@@ -181,12 +181,12 @@ export async function notificarNuevoPendiente(
           ${p.creadorNombre ? `<tr><td style="padding:6px 0;color:#64748b">Creado por</td><td style="padding:6px 0">${p.creadorNombre}</td></tr>` : ""}
         </table>
         <a href="${link}" style="display:inline-block;margin-top:24px;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:bold">
-          Ver pendiente en NAO
+          Ver pendiente en Nexus obra
         </a>
       </div>
       <div style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0">
         <p style="margin:0;color:#94a3b8;font-size:11px">
-          Este correo se envió automáticamente desde NAO — Nexus Avance de Obra. No respondas a este mensaje.
+          Este correo se envió automáticamente desde Nexus obra. No respondas a este mensaje.
         </p>
       </div>
     </div>
@@ -198,7 +198,7 @@ export async function notificarNuevoPendiente(
       to: destinatarios,
       subject: `${opciones.asignacion ? "Te asignaron un pendiente" : "Nuevo pendiente"} en ${p.obraNombre}: ${p.tarea}`,
       html,
-      fromName: "NAO Nexus 360",
+      fromName: "Nexus obra",
     });
     console.log(`[email] Notificación enviada a: ${destinatarios.join(", ")}`);
   } catch (e) {
